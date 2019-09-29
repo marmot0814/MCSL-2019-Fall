@@ -2,7 +2,7 @@
     .cpu cortex-m4
     .thumb
 
-.section .isr_vector, "x"
+.section .isr_vector,"ax",%progbits
     .global Reset_Handler
     .global Default_Handler
 
@@ -30,9 +30,9 @@ _vectors:
     .word 0
     IRQ PendSV_Handler
     IRQ Systick_Handler
+    .fill 0x188-(.-_vectors), 1, 0x0
 
     .thumb_func
-    .org 0x00000188
 Default_Handler:
     bx lr
     .thumb_func

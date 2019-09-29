@@ -48,6 +48,12 @@ RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
 /* Define output sections */
 SECTIONS
 {
+  .isr_vector :
+  {
+      . = ALIGN(4);
+      KEEP(*(.isr_vector))
+      . = ALIGN(4);
+  } > FLASH
 
   /* The program code and other data goes into FLASH */
   .text :
