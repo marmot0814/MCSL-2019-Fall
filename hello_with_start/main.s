@@ -11,3 +11,8 @@ main:
     movs r1,#20
     adds r2,r0,r1
     b main
+
+.bss
+.data
+    .global A
+    A: .word 0xAA

@@ -48,18 +48,12 @@ RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
 /* Define output sections */
 SECTIONS
 {
-  /* The startup code goes first into FLASH */
-  .isr_vector :
-  {
-    . = ALIGN(4);
-    KEEP(*(.isr_vector)) /* Vector table and startup code */
-    . = ALIGN(4);
-  } >FLASH
 
   /* The program code and other data goes into FLASH */
   .text :
   {
     . = ALIGN(4);
+    KEEP(*(.isr_vector)) /* Vector table and startup code */
     *(.text)           /* .text sections (code) */
     *(.text*)          /* .text* sections (code) */
     *(.glue_7)         /* glue arm to thumb code */
