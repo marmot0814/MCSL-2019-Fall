@@ -2,8 +2,9 @@
     .cpu cortex-m4
     .thumb
 
-.section .isr_vector, "x"
+.section .isr_vector,"ax",%progbits
     .global Reset_Handler
+    .global Default_Handler
 
     .macro IRQ handler
     .word \handler
@@ -29,10 +30,40 @@ _vectors:
     .word 0
     IRQ PendSV_Handler
     IRQ Systick_Handler
+    .fill 0x188-(.-_vectors), 1, 0x0
 
-.org 0x00000188
     .thumb_func
-Default_Handler: bx lr
+Default_Handler:
+    bx lr
     .thumb_func
 Reset_Handler:
+data_copy:
+    ldr r1, __sidata
+    ldr r3, __edata
+    ldr r2, __sdata
+    subs r3, r3, r2
+    beq bss_zero
+data_copy_loop:
+    ldrb r4, [r1], #1
+    strb r4, [r2], #1
+    subs r3, r3, #1
+    bgt data_copy_loop
+
+bss_zero:
+    ldr r1, __sbss
+    ldr r3, __ebss
+    subs r3, r3, r1
+    mov r2, #0
+    beq _run
+bss_zero_loop:
+    strb r2, [r1], #1
+    subs r3, r3, #1
+    bgt bss_zero_loop
+_run:
     bl main
+
+__sidata: .word _sidata
+__sdata: .word _sdata
+__edata: .word _edata
+__sbss: .word _sbss
+__ebss: .word _ebss
