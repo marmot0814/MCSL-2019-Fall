@@ -1,5 +1,5 @@
 CC=arm-none-eabi-gcc
-CC_FLAGS=-c -g -mcpu=cortex-m4 -mthumb -mfloat-abi=hard
+CC_FLAGS=-O0 -c -g -mcpu=cortex-m4 -mthumb -mfloat-abi=hard
 LD=arm-none-eabi-ld
 LD_FLAGS_F4=-nostartfiles -TLinkerScriptF4.ld
 LD_FLAGS_L4=-nostartfiles -TLinkerScriptL4.ld
@@ -9,7 +9,7 @@ main.bin: main.elf
 	$(OBJ_COPY) -O binary main.elf main.bin
 
 main.elf: start.o main.o
-	$(LD) $(LD_FLAGS_L4) -o main.elf start.o main.o
+	$(LD) $(LD_FLAGS_L4) -o main.elf main.o start.o
 
 start.o: start.s
 	$(CC) $(CC_FLAGS) -o start.o start.s
