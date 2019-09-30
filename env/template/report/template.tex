@@ -1,0 +1,66 @@
+\documentclass[a4paper,oneside]{article}
+\usepackage[a4paper, margin=2cm, lmargin=2.5cm, rmargin=2.5cm, bmargin=1.2cm]{geometry}
+\headsep=5pt
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{xeCJK}       %讓中英文字體分開設置
+
+\setCJKmainfont{Noto Sans CJK TC}
+\XeTeXlinebreaklocale "zh"             %這兩行一定要加，中文才能自動換行
+\XeTeXlinebreakskip = 0pt plus 1pt
+
+\usepackage{enumitem}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+% Tikz settings optimized for causal graphs.
+% Just copy-paste this part
+\usetikzlibrary{shapes,decorations,arrows,calc,arrows.meta,fit,positioning}
+\tikzset{
+    -Latex,auto,node distance =1 cm and 1 cm,semithick,
+    state/.style ={ellipse, draw, minimum width = 0.7 cm},
+    point/.style = {circle, draw, inner sep=0.04cm,fill,node contents={}},
+    bidirected/.style={Latex-Latex,dashed},
+    el/.style = {inner sep=2pt, align=left, sloped}
+}
+\usepackage{listings}
+\usepackage[T1]{fontenc}
+\usepackage{fancyhdr}
+\usepackage{url}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{tgcursor}
+\usepackage[compact]{titlesec}
+\titlespacing{\section}{0pt}{*0}{*0}
+\titlespacing{\subsection}{0pt}{*0}{*0}
+\titleformat{\section}[hang]
+  {\normalfont\bfseries}
+  {}
+  {0em}
+  {\Large \thesection\hspace{0.6em}}
+\titleformat{\subsection}[hang]
+  {\normalfont\bfseries}
+  {}
+  {0em}
+  {\large \thesubsection\hspace{0.6em}}
+
+\pagestyle{fancy}
+\fancyfoot{}
+\fancyhead[R]{Page \thepage}
+\fancyhead[L]{0616069, 資工三A, 張晉瑋 | 0616014, 資工三B, 楊政道}
+\definecolor{deeper}{gray}{.8}
+
+\renewcommand*{\ttdefault}{pcr}
+\lstset{language=C++,
+		basicstyle=\footnotesize\ttfamily,
+		tabsize=2,
+		breaklines=true,
+}
+\setlist{leftmargin=\parindent}
+
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0.1em}
+
+\begin{document}
+\input{content.tex}
+\end{document}
