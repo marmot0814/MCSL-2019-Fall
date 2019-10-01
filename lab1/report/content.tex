@@ -2,9 +2,28 @@
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
-\section{What 實驗要做什麼}
+\section{The Goal of The Lab}
 \paragraph{}
-\section{How 實驗過程}
+As the specification, implement Hamming Distance, Fibonacci Sequence, Bubble Sort program in ARM Assembly Language(using GNU \texttt{as} and \texttt{unified} instruction set syntax.)
+\section{Experiment Procedure}
+\subsection{Development Environment}
 \paragraph{}
-\section{Feedback 實驗心得}
+We decided to use OpenOCD and gdb to evaluate Lab1.
+To set up such environment, we created a configuration to inform OpenOCD to communicate with Nucleo board using ST-link and programming STM32L4.
+The file is given as follows:
+\begin{lstlisting}
+source [find /usr/share/openocd/scripts/interface/stlink-v2-1.cfg]
+source [find /usr/share/openocd/scripts/target/stm32l4x.cfg]
+reset_config srst_only srst_nogate
+
+init
+reset
+\end{lstlisting}
+\subsection{Hamming Distance}
+\paragraph{}
+\subsection{Fibonacci Sequence}
+\paragraph{}
+\subsection{Bubble Sort}
+\paragraph{}
+\section{Feedback}
 \paragraph{}
