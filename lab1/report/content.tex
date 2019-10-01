@@ -2,9 +2,119 @@
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
-\section{What 實驗要做什麼}
+\section{The Goal of The Lab}
 \paragraph{}
-\section{How 實驗過程}
+As the specification, implement Hamming Distance, Fibonacci Sequence, Bubble Sort program in ARM Assembly Language(using GNU \texttt{as} and \texttt{unified} instruction set syntax.)
+\section{Experiment Procedure}
+\subsection{Development Environment}
 \paragraph{}
-\section{Feedback 實驗心得}
+Since Lab1 is relatively simpler, we decide not to use IDE and write the startup code from scratch(linker script is modified from template).
+We compile the code with \texttt{arm-none-eabi-*} toolchain and use OpenOCD and gdb to evaluate.
+To set up such environment, we created a configuration to inform OpenOCD to communicate with Nucleo board using ST-link debugger and to program STM32L4 microcontroller.
+The file(\texttt{openocd.cfg}) is given as follows:
+\begin{lstlisting}
+source [find /usr/share/openocd/scripts/interface/stlink-v2-1.cfg]
+source [find /usr/share/openocd/scripts/target/stm32l4x.cfg]
+reset_config srst_only srst_nogate
+
+init
+reset
+\end{lstlisting}
 \paragraph{}
+With the board connected, we start OpenOCD as a gdb server by issueing \texttt{openocd -f openocd.cfg}, then start the gdb connection:
+\begin{lstlisting}
+> arm-none-eabi-gdb
+(gdb) file main.elf
+Reading symbols from /home/austin/Documents/labs/stm32/MCSL-2019/lab1/hamming_dist/main.elf...done.
+(gdb) target remote :3333
+Remote debugging using :3333
+0x00000000 in ?? ()
+(gdb) mon reset
+Unable to match requested speed 500 kHz, using 480 kHz
+Unable to match requested speed 500 kHz, using 480 kHz
+adapter speed: 480 kHz
+(gdb) load
+Loading section .isr_vector, size 0x1cc lma 0x8000000
+Loading section .text, size 0x78 lma 0x80001cc
+Loading section .data, size 0x8 lma 0x8000244
+Start address 0x800018a, load size 588
+Transfer rate: 2 KB/sec, 196 bytes/write.
+(gdb)
+\end{lstlisting}
+After this we are able to set breakpoint and continue the execution of the program.
+\subsection{Hamming Distance}
+\paragraph{}
+The Hamming distance between two integers is the Hamming weight(the number of set bits)
+of the exclusive-or(the \texttt{eor} instruction) of the two numbers.
+Since processors below Cortex-A8 series doesn't support NEON instruction set, which includes \texttt{vcnt} instruct, we use the implementation
+that takes 4 rounds to calculate the result for a 16-bit integer. At each round we groups the bits into odd part and even part,
+where the length of the part is 1 initially and doubled at each round.
+Then by shifting the number by the length of the part, the odd part and even part in the original number are aligned. 
+After adding these two numbers, we will have the sum of the numbers of set bits in the odd part and the even part.
+Repeating this procedure will produce the final result.
+\paragraph{}
+This can be done by a for-loop like structure. However such pattern is also usually unrolled by compiler optimization,
+so we left it expanded.
+\paragraph{}
+For the \texttt{movs} issue, this is caused by the size limit of the \textit{Flexible second operand}
+(In the Cortex-M4 manual) in the instruction.
+We simply replace it by \texttt{movw} instruction since all the operations are unsigned.
+
+
+\subsection{Fibonacci Sequence}
+\paragraph{}
+As we know that the way to generate Fibonacci sequence is by this recurrence relation.
+\begin{equation}
+  F(x)=\begin{cases}
+    0, & \text{if x=0}.\\
+    1, & \text{if x=1}.\\
+    F(x - 1) + F(x - 2), & \text{if x > 1}
+  \end{cases}
+\end{equation}
+Therefore, we need to implement this recurrence relation by a loop and calculate the answer.
+\paragraph{}
+First of all, we need to check whether the input $N$ is out of the limitation or not. It can be checked by two cmp instructions. One of these check the lowerbound and the other one check the upperbound. The program will return -1 if the check above fail.
+\paragraph{}
+Second, we can calculate the $n$-th Fibonacci number by a counter and a loop. For each iteration in the loop, we check whether the counter have counted to \texttt{N} or not first. If the counter have been counted to \texttt{N}, we will get the \texttt{N}-th Fibonacci number in the register. Otherwise, carry on the loop.
+\paragraph{}
+Because the size of the register is 32-bit, it cannot contain the number larger than 32-bit and it will lead to overflow. If the register overflows, we need to return \texttt{-2}. The way to check whether the register overflows is that the result of add instruction between two positive number is positive or negative.
+It will also work if we use \texttt{bvs} instruction, but we found it after we finished the lab, hence we didn't use it.
+
+
+\subsection{Bubble Sort}
+\paragraph{}
+We think the major goal of this part is to use \texttt{ldr*, str*} instructions, but we still describe the bubble sort again as follows.
+We simulated the nested for-loop implementation in C, with \texttt{i, j} kept in registers. At each round we start from the beginning of the array, compare the adjacent pair of numbers and swap if the order is not correct. In this procedure the maximum element will be moved to the end of the array. Therefore after the $n$ rounds the whole array will be sorted.
+\paragraph{}
+In common implementation, it is not necesssary to run after the $n-i$th element at round $i$, while we do so just for simplicity.
+\section{Feedback}
+\subsection{Startup Code}
+\paragraph{}
+As our understanding, the startup code performs the following tasks before the processor runs our code: 
+place the vector table, copy and initialize data in \texttt{.data} and \texttt{.bss} sections, and initialize system clock. 
+We didn't do the third part in our startup code and left it as reset value.
+\paragraph{}
+In the startup code, we put vector table, startup procedure and related (linker filled) data in the \texttt{.isr\_vector} section.
+\paragraph{The Vector Table}
+According to Cortex-M4 and STM32L4 manuals, the microcontroller calls the reset handler which the corresponding vector points to when the system resets.
+The vectors are the addresses pointing to initial stack top and procedures handling each type of hardware events.
+They are stored in the region beginning from \texttt{0x08000000} in the mapped address,
+which points to the flash memory.
+STM32L476 has entries that need the space from \texttt{0x08000000} to \texttt{0x08000188}.
+We define these values by \texttt{.word} directive, and mainly assigned the initial stack pointer, and reset handler.
+The most of the rest are assigned to be the \texttt{Default\_Handler}(by macro) or a null, which might not be safe.
+\paragraph{Data Copy Loops}
+Nothing special, copy the data loaded in LMA(flash memory) to VMA(SRAM) at runtime.
+\subsection{Linker Related Issues}
+\paragraph{}
+For the hello world example, the startup code without data copying loop works fine since it doesn't involve memory access.
+However when we add the data copying part, or even a \texttt{nop} like instruction,
+the section \texttt{.isr\_vector} seemed not loaded by gdb, and objdump shows that they have overlapping address with \texttt{.text}.
+When we put the whole section into \texttt{.text} output section, things worked but not desireable.
+After a while of research, it ended up with the missing of giving \texttt{"a"}(allocatable) flag to the section,
+which showed that it might be considered as debug section initially.
+What confused us are the following:
+\begin{itemize}
+\item The default flag of a section should be loadable in GNU \texttt{as}, why doesn't it imply the allocatable flag?
+\item Why did the hello world example worked without allocatable flag?
+\end{itemize}
