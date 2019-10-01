@@ -8,10 +8,9 @@ As the specification, implement Hamming Distance, Fibonacci Sequence, Bubble Sor
 \section{Experiment Procedure}
 \subsection{Development Environment}
 \paragraph{}
-Since Lab1 is relatively simpler, we decide not to use IDE and write the startup code from scratch(linker script is modified from template).
-We compile the code with \texttt{arm-none-eabi-*} toolchain and use OpenOCD and gdb to evaluate.
-To set up such environment, we created a configuration to inform OpenOCD to communicate with Nucleo board using ST-link debugger and to program STM32L4 microcontroller.
-The file(\texttt{openocd.cfg}) is given as follows:
+We decided to use OpenOCD and gdb to evaluate Lab1.
+To set up such environment, we created a configuration to inform OpenOCD to communicate with Nucleo board using ST-link and programming STM32L4.
+The file is given as follows:
 \begin{lstlisting}
 source [find /usr/share/openocd/scripts/interface/stlink-v2-1.cfg]
 source [find /usr/share/openocd/scripts/target/stm32l4x.cfg]
@@ -20,6 +19,13 @@ reset_config srst_only srst_nogate
 init
 reset
 \end{lstlisting}
+\subsection{Hamming Distance}
+\paragraph{}
+\subsection{Fibonacci Sequence}
+\paragraph{}
+\subsection{Bubble Sort}
+\paragraph{}
+\section{Feedback}
 \paragraph{}
 With the board connected, we start OpenOCD as a gdb server by issueing \texttt{openocd -f openocd.cfg}, then start the gdb connection:
 \begin{lstlisting}
