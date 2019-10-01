@@ -8,9 +8,10 @@ As the specification, implement Hamming Distance, Fibonacci Sequence, Bubble Sor
 \section{Experiment Procedure}
 \subsection{Development Environment}
 \paragraph{}
-We decided to use OpenOCD and gdb to evaluate Lab1.
-To set up such environment, we created a configuration to inform OpenOCD to communicate with Nucleo board using ST-link and programming STM32L4.
-The file is given as follows:
+Since Lab1 is relatively simpler, we decide not to use IDE and write the startup code from scratch(linker script is modified from template).
+We compile the code with \texttt{arm-none-eabi-*} toolchain and use OpenOCD and gdb to evaluate.
+To set up such environment, we created a configuration to inform OpenOCD to communicate with Nucleo board using ST-link debugger and to program STM32L4 microcontroller.
+The file(\texttt{openocd.cfg}) is given as follows:
 \begin{lstlisting}
 source [find /usr/share/openocd/scripts/interface/stlink-v2-1.cfg]
 source [find /usr/share/openocd/scripts/target/stm32l4x.cfg]
@@ -19,6 +20,28 @@ reset_config srst_only srst_nogate
 init
 reset
 \end{lstlisting}
+\paragraph{}
+With the board connected, we start OpenOCD as a gdb server by issueing \texttt{openocd -f openocd.cfg}, then start the gdb connection:
+\begin{lstlisting}
+> arm-none-eabi-gdb
+(gdb) file main.elf
+Reading symbols from /home/austin/Documents/labs/stm32/MCSL-2019/lab1/hamming_dist/main.elf...done.
+(gdb) target remote :3333
+Remote debugging using :3333
+0x00000000 in ?? ()
+(gdb) mon reset
+Unable to match requested speed 500 kHz, using 480 kHz
+Unable to match requested speed 500 kHz, using 480 kHz
+adapter speed: 480 kHz
+(gdb) load
+Loading section .isr_vector, size 0x1cc lma 0x8000000
+Loading section .text, size 0x78 lma 0x80001cc
+Loading section .data, size 0x8 lma 0x8000244
+Start address 0x800018a, load size 588
+Transfer rate: 2 KB/sec, 196 bytes/write.
+(gdb)
+\end{lstlisting}
+After this we are able to set breakpoint and continue the execution of the program.
 \subsection{Hamming Distance}
 \paragraph{}
 \subsection{Fibonacci Sequence}
