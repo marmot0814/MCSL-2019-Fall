@@ -59,6 +59,8 @@ so we left it expanded.
 For the \texttt{movs} issue, this is caused by the size limit of the \textit{Flexible second operand}
 (In the Cortex-M4 manual) in the instruction.
 We simply replace it by \texttt{movw} instruction since all the operations are unsigned.
+
+
 \subsection{Fibonacci Sequence}
 \paragraph{}
 As we know that the way to generate Fibonacci sequence is by this recurrence relation.
@@ -76,7 +78,14 @@ First of all, we need to check whether the input $N$ is out of the limitation or
 Second, we can calculate the n-th Fibonacci number by a counter and a loop. For each iteration in the loop, we check whether the counter have counted to n or not first. If the counter have been counted to n, we will get the n-th Fibonacci number in the register. Otherwise, carry on the loop.
 \paragraph{}
 Because the size of the register is 32-bit, it cannot contain the number larger than 32-bit and it will lead to overflow. If the register overflows, we need to return -2. The way to check whether the register overflows is that the result of add instruction between two positive number is positive or negative.
+It will also work if we use \texttt{bvs} instruction, but we found it after we finished the lab, hence we didn't use it.
+
+
 \subsection{Bubble Sort}
 \paragraph{}
+We think the major goal of this part is to use \texttt{ldr*, str*} instructions, but we still describe the bubble sort again as follows.
+We simulated the nested for-loop implementation in C, with \texttt{i, j} kept in registers. At each round we start from the beginning of the array, compare the adjacent pair of numbers and swap if the order is not correct. In this procedure the maximum element will be moved to the end of the array. Therefore after the $n$ rounds the whole array will be sorted.
+\paragraph{}
+In common implementation, it is not necesssary to run after the $n-i$th element at round $i$, while we do so just for simplicity.
 \section{Feedback}
 \paragraph{}
