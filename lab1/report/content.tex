@@ -44,6 +44,21 @@ Transfer rate: 2 KB/sec, 196 bytes/write.
 After this we are able to set breakpoint and continue the execution of the program.
 \subsection{Hamming Distance}
 \paragraph{}
+The Hamming distance between two integers is the Hamming weight(the number of set bits)
+of the exclusive-or(the \texttt{eor} instruction) of the two numbers.
+Since processors below Cortex-A8 series doesn't support NEON instruction set, which includes \texttt{vcnt} instruct, we use the implementation
+that takes 4 rounds to calculate the result for a 16-bit integer. At each round we groups the bits into odd part and even part,
+where the length of the part is 1 initially and doubled at each round.
+Then by shifting the number by the length of the part, the odd part and even part in the original number are aligned. 
+After adding these two numbers, we will have the sum of the numbers of set bits in the odd part and the even part.
+Repeating this procedure will produce the final result.
+\paragraph{}
+This can be done by a for-loop like structure. However such pattern is also usually unrolled by compiler optimization,
+so we left it expanded.
+\paragraph{}
+For the \texttt{movs} issue, this is caused by the size limit of the \textit{Flexible second operand}
+(In the Cortex-M4 manual) in the instruction.
+We simply replace it by \texttt{movw} instruction since all the operations are unsigned.
 \subsection{Fibonacci Sequence}
 \paragraph{}
 \subsection{Bubble Sort}
