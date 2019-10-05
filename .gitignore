@@ -2,5 +2,6 @@
 *.bin
 *.elf
 *.log
+*.aux
 *.pdf
 *.zip
