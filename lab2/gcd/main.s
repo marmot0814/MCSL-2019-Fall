@@ -16,6 +16,10 @@ gcd:
     // R1: n
     // R2: ret
     push {R0, R1, lr}
+    cmp R7, sp                  // compare stack pointer
+    blt skipUpdateSp
+    mov R7, sp
+skipUpdateSp:
     cmp R0, #0                  // if (r0 == 0)
     beq gcdR1Ret                // r2 *= r1
     cmp R1, #0                  // if (r1 == 0)
@@ -74,9 +78,14 @@ main:
     ldr R1, =n
     ldr R1, [R1]
     mov R2, #1
+    mov R6, sp                  // init stack pointer
+    mov R7, sp                  // minimun stack pointer
     bl gcd
     ldr R3, =result
     str R2, [R3]
+    ldr R3, =max_size
+    sub R6, R6, R7
+    str R6, [R3]
     b main
 
 .bss
