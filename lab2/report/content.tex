@@ -1,10 +1,75 @@
-\title{Lab1 ARM Assembly 1}
+\title{Lab2 ARM Assembly 2}
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
-\section{What 實驗要做什麼}
+\section{Objectives}
 \paragraph{}
-\section{How 實驗過程}
+As the specification, implement postfix arithmic and greatest common divisor program, and use stack manupulation in ARM Assembly.
+\section{Experiment Procedure}
+\subsection{Postfix Arithmic}
 \paragraph{}
-\section{Feedback 實驗心得}
+We are not pushing \texttt{LR} into stack since we are not going back to \texttt{\_start} in this program, and the procedure \texttt{atoi} doesn't call any other procedure.
+\paragraph{}
+There are two stack can be used in Cortex M4, which are the main stack and the process stack. The address of the two stack are stored in \texttt{MSP} and \texttt{PSP} and one can use \texttt{MSR} instruction to switch between them.
+\paragraph{}
+To set up the stack to be on the \texttt{.data} section we defined, we set the register \texttt{PSP} to be the \textbf{end} of the symbol \texttt{user\_stack} since the stack grows downward in address.
+\paragraph{}
+In the main program, we keep the current character and the next character in registers \texttt{R2, R3}, and make the read address in \texttt{R0} point at the next two byte. When reading each character we move \texttt{R3} to \texttt{R2} and then load the byte at \texttt{[R0]} to \texttt{R3}. In such manner we are able to determine whether the current character is a sign or an operator. If the current character is a digit or a sign, then we branch into \texttt{atoi} routine, otherwise we pop the top two item in the stack into register \texttt{R4, R5}, perform the corresponding operation and push the result back to the stack. We skip the spaces after we processed current token. The branching scheme is as following code:
+\begin{lstlisting}
+    loop_1:
+    teq r2, #0x00
+    beq loop_1_end
+    teq r3, #' '
+    beq op_start
+    teq r3, #0x00
+    bne read_number
+op_start:
+    teq r2, #'+'
+    beq op_add
+    teq r2, #'-'
+    beq op_sub
+
+op_add:
+    // doing addition and push result back
+op_sub:
+    // doing subtraction and push result back
+op_end:
+    ldrb r2, [r0], #1
+    ldrb r3, [r0], #1
+    b loop_1
+
+read_number:
+    bl atoi
+    push {r1}
+    b loop_1
+\end{lstlisting}
+
+\paragraph{}
+In the \texttt{atoi} routine, since the address pointing the string is 2 chracters ahead, we use the offset \texttt{[R0, \#-2]} rather than continuing the look ahead scheme. We store the sign and magnitude of the value and append the digit when we read it. Finally we multiply the magnitude by the sign and then return. The address and the register value for the look ahead scheme is restored afterwards. The code for \texttt{atoi} without initialization is given below, where \texttt{R3, R5} store the character \texttt{'0'} and number $10$ :
+\begin{lstlisting}
+    loop_2:
+    teq r2, #' '
+    beq loop_2_end
+    teq r2, #0x00
+    beq loop_2_end
+    teq r2, #'-'
+    bne append_digit
+    ldrb r2, [r0, #-2]
+    adds r0, #0x01
+    mov r4, #-1
+append_digit:
+    muls r1, r1, r5
+    subs r2, r2, r3
+    adds r1, r1, r2
+    ldrb r2, [r0, #-2]
+    adds r0, #0x01
+    b loop_2
+loop_2_end:
+    muls r1, r1, r4
+    subs r0, #2
+    ldrb r2, [r0], #1
+    ldrb r3, [r0], #1
+    bx lr
+\end{lstlisting}
+\section{Feedback}
 \paragraph{}
