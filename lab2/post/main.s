@@ -9,6 +9,7 @@
 postfix_expr: .asciz "-100 10 20 + - 10 +"
 .word 0
 
+.align 4
 main:
     ldr r0, =(user_stack+128)
     msr PSP, r0

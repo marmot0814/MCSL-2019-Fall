@@ -10,7 +10,7 @@ As the specification, implement postfix arithmic and greatest common divisor pro
 \paragraph{}
 We are not pushing \texttt{LR} into stack since we are not going back to \texttt{\_start} in this program, and the procedure \texttt{atoi} doesn't call any other procedure.
 \paragraph{}
-There are two stack can be used in Cortex M4, which are the main stack and the process stack. The address of the two stack are stored in \texttt{MSP} and \texttt{PSP} and one can use \texttt{MSR} instruction to switch between them.
+There are two stack can be used in Cortex M4, which are the main stack and the process stack. The address of the two stack are stored in \texttt{MSP} and \texttt{PSP}. One can use \texttt{MSR} instruction to switch between them.
 \paragraph{}
 To set up the stack to be on the \texttt{.data} section we defined, we set the register \texttt{PSP} to be the \textbf{end} of the symbol \texttt{user\_stack} since the stack grows downward in address.
 \paragraph{}
