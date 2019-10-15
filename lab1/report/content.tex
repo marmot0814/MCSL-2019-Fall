@@ -8,10 +8,9 @@ As the specification, implement Hamming Distance, Fibonacci Sequence, Bubble Sor
 \section{Experiment Procedure}
 \subsection{Development Environment}
 \paragraph{}
-Since Lab1 is relatively simpler, we decide not to use IDE and write the startup code from scratch(linker script is modified from template).
-We compile the code with \texttt{arm-none-eabi-*} toolchain and use OpenOCD and gdb to evaluate.
-To set up such environment, we created a configuration to inform OpenOCD to communicate with Nucleo board using ST-link debugger and to program STM32L4 microcontroller.
-The file(\texttt{openocd.cfg}) is given as follows:
+We decided to use OpenOCD and gdb to evaluate Lab1.
+To set up such environment, we created a configuration to inform OpenOCD to communicate with Nucleo board using ST-link and programming STM32L4.
+The file is given as follows:
 \begin{lstlisting}
 source [find /usr/share/openocd/scripts/interface/stlink-v2-1.cfg]
 source [find /usr/share/openocd/scripts/target/stm32l4x.cfg]
@@ -20,6 +19,28 @@ reset_config srst_only srst_nogate
 init
 reset
 \end{lstlisting}
+\subsection{Hamming Distance}
+\paragraph{}
+\subsection{Fibonacci Sequence}
+\paragraph{}
+As we know that the way to generate Fibonacci sequence is by this recurrence relation.
+\begin{equation}
+  F(x)=\begin{cases}
+    0, & \text{if x=0}.\\
+    1, & \text{if x=1}.\\
+    F(x - 1) + F(x - 2), & \text{if x > 1}
+  \end{cases}
+\end{equation}
+Therefore, we need to implement this recurrence relation by a loop and calculate the answer.
+\paragraph{}
+First of all, we need to check whether the input $N$ is out of the limitation or not. It can be checked by two cmp instructions. One of these check the lowerbound and the other one check the upperbound. The program will return -1 if the check above fail.
+\paragraph{}
+Second, we can calculate the n-th Fibonacci number by a counter and a loop. For each iteration in the loop, we check whether the counter have counted to n or not first. If the counter have been counted to n, we will get the n-th Fibonacci number in the register. Otherwise, carry on the loop.
+\paragraph{}
+Because the size of the register is 32-bit, it cannot contain the number larger than 32-bit and it will lead to overflow. If the register overflows, we need to return -2. The way to check whether the register overflows is that the result of add instruction between two positive number is positive or negative.
+\subsection{Bubble Sort}
+\paragraph{}
+\section{Feedback}
 \paragraph{}
 With the board connected, we start OpenOCD as a gdb server by issueing \texttt{openocd -f openocd.cfg}, then start the gdb connection:
 \begin{lstlisting}

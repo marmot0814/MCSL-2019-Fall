@@ -71,5 +71,111 @@ loop_2_end:
     ldrb r3, [r0], #1
     bx lr
 \end{lstlisting}
+\subsection{Greatest Common Divisor with Stein's Algorithm}
+\paragraph{}
+In this section, we need to implement Stein's Algorithm to calculate the greatest common divisor between given two numbers by recursive method. To implement the recursive function, we need to manipulate the system stack a.k.a call stack to maintain the return address and function arguments of the previous function call. Therefore, the main structure of the recursive function will be like this below
+\begin{lstlisting}
+func:
+    push {<some argument>, lr}
+    // if this is a terminated state, goto terminated state label
+    // content of the recurrence relation
+    bl func
+    pop  {<some argument>, pc}
+teriminatedState:
+    // content of the terminated state
+    pop  {<some argument>, pc}
+\end{lstlisting}
+\paragraph{}
+The next task we need to complete is the content of the terminated state and the recurrence relation.
+\paragraph{}
+The content of the terminated state is a trivial case.
+\begin{equation}
+  gcd(m, n)=\begin{cases}
+    m, & \text{if n is zero}.\\
+    n, & \text{if m is zero}.\\
+    \text{<recurrence relation>}, & \text{otherwise}.
+  \end{cases}
+\end{equation}
+\paragraph{}
+which is one of the two numbers is zero and the other number is the greatest common divisor between the two numbers. We can use some branch and compare instructions to deal with this case. The code is listed below as an attachment.
+\begin{lstlisting}
+    cmp R0, #0                  // if (r0 == 0)
+    beq gcdR1Ret                // goto return r1 case
+    cmp R1, #0                  // if (r1 == 0)
+    beq gcdR0Ret                // goto return r0 case
+    b cntn                      // goto recurence relation case
+gcdR1Ret:
+    mul R2, R2, R1              // multiply answer by r1
+    b gcdRet                    // return answer
+gcdR0Ret:
+    mul R2, R2, R0              // multiply answer by r0
+    b gcdRet                    // return answer
+gcdRet:
+    pop  {R0, R1, pc}           // return function
+\end{lstlisting}
+\paragraph{}
+The content of the recurrece relation can be divided into four cases.
+\begin{equation}
+  gcd(m, n)=\begin{cases}
+    m, & \text{if n is zero}.\\
+    n, & \text{if m is zero}.\\
+    2 * gcd(m / 2, n / 2), & \text{if m is even and n is even}.\\
+    gcd(m / 2, n), & \text{if m is even and n is odd}.\\
+    gcd(m, n / 2), & \text{if m is odd and n is even}.\\
+    gcd(m, abs(m - n)), & \text{if m is odd and n is odd}.
+  \end{cases}
+\end{equation}
+\paragraph{}
+We need to construct a if...else structure and do the corresponding action according to each cases. The code is listed below as an attachment.
+\begin{lstlisting}
+    and R3, R0, #1              // r3 = r0 & 1
+    and R4, R1, #1              // r4 = r1 & 1
+    orr R5, R3, R4              // r5 = r3 | r4
+    cmp R5, #0                  // if (r5 == 0)
+    bne else1                   //
+    lsr R0, R0, #1              // r0 /= 2
+    lsr R1, R1, #1              // r1 /= 2
+    lsl R2, R2, #1              // r2 *= 2
+    b endif
+else1:
+    cmp R3, #0                  // if (r3 == 0)
+    bne else2
+    lsr R0, R0, #1              // r0 /= 2
+    b endif
+else2:
+    cmp R4, #0                  // if (r4 == 0)
+    bne else3
+    lsr R1, R1, #1              // r1 /= 2
+    b endif
+else3:
+    sub R3, R0, R1              // r3 = r0 - r1
+    cmp R3, #0                  // if (r3 < 0)
+    bgt skipAbs
+    mov R4, #0                  //
+    sub R3, R4, R3              //   r3 = 0 - r3
+skipAbs:
+    mov R4, R1                  // r4 = r1
+    cmp R0, R1                  // if (r0 < r1)
+    bgt isR1
+    mov R4, R0                  //   r4 = r0
+isR1:
+    mov R0, R3                  // r0 = r3
+    mov R1, R4                  // r1 = r4
+    b endif
+endif:
+    bl gcd
+    pop  {R0, R1, pc}
+\end{lstlisting}
+\paragraph{}
+Using the way above, we can get the greatest common divisor between two numbers and store the value into the target memory address. The maximum size of the system stack usage can be done by the following method. First, store the initial stack pointer into a register. Then, we can maintain the minimun value of the stack pointer after the push instruction. Finally, we can substract the minimun value of the stack pointer from the initial stack poiner to get the maximum size of the system stack usage. It can be done by just adding some codes after the push instruction and the code is listed below as an attachment.
+\begin{lstlisting}
+    push {R0, R1, lr}
+    cmp R7, sp                  // compare stack pointer
+    blt skipUpdateSp
+    mov R7, sp
+skipUpdateSp:
+    <the content of the recurrsive function>
+\end{lstlisting}
 \section{Feedback}
 \paragraph{}
+The main objectives of this lab are familiar to the operation of stack. This is my first time to manipulate the system stack to handle the recurrsive function and I come to realize that computers help me to do lots of things when I use the high-level language.
