@@ -6,10 +6,14 @@
     expr_result: .word 0
 .text
 .global main
-postfix_expr: .asciz "-100 10 20 + - 10 +"
+postfix_expr: .asciz "70   1 + 2 -"
 .word 0
 
 .align 4
+load_nxt:
+    ldrb r2, [r0], #0x01
+    ldrb r3, [r0], #0x01
+    b loop_1
 main:
     ldr r0, =(user_stack+128)
     msr PSP, r0
@@ -22,8 +26,13 @@ main:
 loop_1:
     teq r2, #0x00
     beq loop_1_end
+    teq r2, #' '
+    beq load_nxt
     teq r3, #' '
-    beq op_start
+    bne reg_num
+    cmp r2, #0x30
+    blt op_start
+reg_num:
     teq r3, #0x00
     bne read_number
 op_start:
