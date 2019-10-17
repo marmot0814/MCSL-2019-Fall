@@ -2,8 +2,8 @@
     .cpu cortex-m4
     .thumb
 .text
-    m: .word 1700022
-    n: .word 6578346
+    m: .word 39
+    n: .word 65
 .global main
 
 //  int gcd(int a, int b) {
