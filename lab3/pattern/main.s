@@ -51,6 +51,7 @@ DisplayLED:
     ldr     r2,     =leds
     ldr     r3,     [r2]
     lsl     r0,     r0,     r3
+    mvn     r0,     r0
     strh    r0,     [r1]
     add     r3,     r3,     r4
     str     r3,     [r2]
@@ -66,7 +67,7 @@ ReverseDiff:
 
 Delay:
     movs    r0,     #1
-    lsl     r0,     r0,     #20
+    lsl     r0,     r0,     #16
 DelayLoop:
     cmp     r0,     #0
     beq     end
