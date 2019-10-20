@@ -2,17 +2,18 @@
     .cpu cortex-m4
     .thumb
 .data
-    leds:   .word 0
-    mvr:    .word 1
+    leds:               .word   0
+    mvr:                .word   1
+    delay_counter:      .word   0
 .text
 .global main
 
-.equ RCC_AHB2ENR, 0x4002104C
-.equ GPIOB_MODER, 0x48000400
-.equ GPIOB_OTYPER, 0x48000404
-.equ GPIOB_OSPEEDR, 0x48000408
-.equ GPIOB_PUPDR, 0x4800040C
-.equ GPIOB_ODR, 0x48000414
+.equ RCC_AHB2ENR,       0x4002104C
+.equ GPIOB_MODER,       0x48000400
+.equ GPIOB_OTYPER,      0x48000404
+.equ GPIOB_OSPEEDR,     0x48000408
+.equ GPIOB_PUPDR,       0x4800040C
+.equ GPIOB_ODR,         0x48000414
 
 main:
     bl      Initial
@@ -24,7 +25,6 @@ Loop:
 Initial:
     push    {lr}
     bl      GPIO_init
-    bl      GlobalVar_init
     pop     {pc}
 
 GPIO_init:
@@ -35,8 +35,8 @@ GPIO_init:
     pop     {pc}
 
 set_RCC_AHB2ENR:
+    mov     r1,     #0x2                                //  Set PB on
     ldr     r0,     =RCC_AHB2ENR                        //  Load RCC address
-    mov     r1,     #0x2                                //  Turn on PB output
     str     r1,     [r0]                                //  Store 0x2 into RCC
     bx      lr
 
@@ -50,14 +50,11 @@ set_GPIO_MODER:
     bx      lr
 
 set_GPIO_OSPEEDR:
-    ldr     r0,     =GPIOB_OSPEEDR                      //  Load OSPEEDR address
     mov     r1,     #0x800                              //  Set ouput speed
+    ldr     r0,     =GPIOB_OSPEEDR                      //  Load OSPEEDR address
     strh    r1,     [r0]                                //  Store back to OSPEEDR address
     bx      lr
     
-GlobalVar_init:
-    bx      lr
-
 DisplayLED:
     ldr     r0,     =leds                               //  Load leds offset address
     ldr     r1,     [r0]                                //  Load leds offset value
@@ -68,6 +65,8 @@ DisplayLED:
     strh    r2,     [r0]                                //  Store back to ODR address
     ldr     r0,     =mvr                                //  Load mover address
     ldr     r2,     [r0]                                //  Load mover value
+    ldr     r0,     =leds                               //  Load leds offset address
+    ldr     r1,     [r0]                                //  Load leds offset value
     add     r1,     r1,     r2                          //  Update offset value
     ldr     r0,     =leds                               //  Load leds offset address
     str     r1,     [r0]                                //  Store back to leds offset address
@@ -87,12 +86,18 @@ ReverseMVR:
     bx      lr
     
 Delay:
-    mov     r1,     #1                                  //  Delay counter
-    lsl     r1,     r1,     #16                         //  Delay counter
+    push    {lr}
+    ldr     r0,     =delay_counter                      //  Load delay_counter address
+    mov     r1,     #(1<<18)                            //  Set delay 1s
+    str     r1,     [r0]                                //  Store back to delay_counter address
 DelayLoop:
+    ldr     r0,     =delay_counter                      //  Load delay_counter addesss
+    ldr     r1,     [r0]                                //  Load delay_counter value
     cmp     r1,     #0                                  //  If counter equal to 0
-    beq     end                                         //      goto end
+    beq     DelayEnd                                    //      goto DelayEnd
     sub     r1,     r1,     #1                          //  Substract counter to 1
+    ldr     r0,     =delay_counter                      //  Load delay_counter address
+    str     r1,     [r0]                                //  Store back to delay_counter address
     b       DelayLoop
-end:
-    bx      lr
+DelayEnd:
+    pop     {pc}
