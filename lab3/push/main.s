@@ -77,24 +77,15 @@ DisplayLED:
     ldr     r1,     [r0]                                //  Load leds offset value
     mov     r2,     #0xC                                //  Initial LED mask into 1100
     lsl     r2,     r2,     r1                          //  Shift mask left #offset
-#   disable version begin
-#   ldr     r0,     =output_mask                        //  Load output_mask address
-#   ldr     r1,     [r0]                                //  Load output_mask value
-#   and     r2,     r1                                  //  and with output_mask
-#   disable version  end
     mvn     r2,     r2                                  //  Trans into Active Low
     ldr     r0,     =GPIOB_ODR                          //  Load ODR address
     strh    r2,     [r0]                                //  Store back to ODR address
-
-#   running version begin
     ldr     r0,     =output_mask                        //  Load output_mask address
     ldr     r1,     [r0]                                //  Load output_mask value
     cmp     r1,     #0                                  //  Compare output_mask
     bne     Running                                     //  If not zero, running
     bx      lr                                          //  Else, return
 Running:
-#   running version  end
-
     ldr     r0,     =mvr                                //  Load mover address
     ldr     r2,     [r0]                                //  Load mover value
     ldr     r0,     =leds                               //  Load leds offset address
@@ -102,7 +93,6 @@ Running:
     add     r1,     r1,     r2                          //  Update offset value
     ldr     r0,     =leds                               //  Load leds offset address
     str     r1,     [r0]                                //  Store back to leds offset address
-                                                        //  Update move value
     cmp     r1,     #0                                  //  If leds offset value equal to 0
     beq     ReverseMVR                                  //      Reverse mover
     cmp     r1,     #4                                  //  If leds offset value equal to 4
@@ -194,7 +184,6 @@ PushedSignal:
     ldr     r0,     =output_mask                        //  Load output_mask address
     str     r1,     [r0]                                //  Store back to output_mask address
     b       ReadBtnEnd
-
 UnPushedSignal:
     mov     r1,     #0                                  //  Set btn_chgOrNot into zero
     ldr     r0,     =btn_chgOrNot                       //  Load btn_chgOrNot address
