@@ -7,7 +7,7 @@
     btn_prev:           .word   0
     btn_counter:        .word   0
     btn_chgOrNot:       .word   0
-    btn_bounce_limit:   .word   2
+    btn_bounce_limit:   .word   1024
     password:           .byte   0b1101
 
 .text
