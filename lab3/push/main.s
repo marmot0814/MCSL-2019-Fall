@@ -57,6 +57,7 @@ GPIOInit:
     bl      SetRCC_AHB2ENR
     bl      SetGPIO_MODER
     bl      SetGPIO_OSPEEDR
+    bl      SetGPIO_PUPDR
     pop     {pc}
 
 SetRCC_AHB2ENR:
@@ -111,6 +112,20 @@ SetGPIOC_OSPEEDR:
     ldr     r1,     =GPIO_OSPEEDR_OFFSET
     mov     r2,     #0x800
     strh    r2,     [r0,    r1]
+    pop     {r0,    r1,     r2,     pc}
+
+SetGPIO_PUPDR:
+    push    {lr}
+    bl      SetGPIOC_PUPDR
+    pop     {pc}
+
+SetGPIOC_PUPDR:
+    push    {r0,    r1,     r2,     lr}
+    ldr     r0,     =GPIOC_BASE
+    ldr     r1,     =GPIO_PUPDR_OFFSET
+    mov     r2,     #1
+    lsl     r2,     r2,     #26
+    str     r2,     [r0,    r1]
     pop     {r0,    r1,     r2,     pc}
 
 DisplayLED:

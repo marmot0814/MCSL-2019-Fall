@@ -2,154 +2,208 @@
     .cpu cortex-m4
     .thumb
 .data
-    arr:   .byte    0x7e, 0x30, 0x6d, 0x79, 0x33, 0x5b, 0x5f, 0x70, 0x7f, 0x7b, 0x77, 0x1f, 0x4e, 0x3d, 0x4f, 0x47
+        delay_counter:          .word   1572864
+        arr:                    .byte    0x7e, 0x30, 0x6d, 0x79, 0x33, 0x5b, 0x5f, 0x70, 0x7f, 0x7b, 0x77, 0x1f, 0x4e, 0x3d, 0x4f, 0x47
 .text
 .global main
 
-.equ RCC_AHB2ENR,       0x4002104C
-.equ GPIOB_MODER,       0x48000400
-.equ GPIOB_OTYPER,      0x48000404
-.equ GPIOB_OSPEEDR,     0x48000408
-.equ GPIOB_PUPDR,       0x4800040C
-.equ GPIOB_ODR,         0x48000414
-.equ GPIOB_BSRR,        0x48000418
-.equ GPIOB_BRR,         0x48000428
+.equ    RCC_AHB2ENR,            0x4002104C
 
-.equ DECODE_MODE,       0x09
-.equ INTENSITY,         0x0A
-.equ SCAN_LIMIT,        0x0B
-.equ SHUTDOWN,          0x0C
-.equ DISPLAY_TEST,      0x0F
+.equ    GPIOB_BASE,             0x48000400
 
-.equ CLOCK,             0x08
-.equ DATA,              0x10
-.equ LOAD,              0x20
+.equ    GPIO_MODER_OFFSET,      0x00
+.equ    GPIO_OTYPER_OFFSET,     0x04
+.equ    GPIO_OSPEEDR_OFFSET,    0x08
+.equ    GPIO_PUPDR_OFFSET,      0x0C
+.equ    GPIO_IDR_OFFSET,        0x10
+.equ    GPIO_ODR_OFFSET,        0x14
+.equ    GPIO_BSRR_OFFSET,       0x18
+.equ    GPIO_LCKR_OFFSET,       0x1C
+.equ    GPIO_AFRL_OFFSET,       0x20
+.equ    GPIO_AFRH_OFFSET,       0x24
+.equ    GPIO_BRR_OFFSET,        0x28
+.equ    GPIO_ASCR_OFFSET,       0x2C
+
+.equ    DECODE_MODE,            0x09
+.equ    INTENSITY,              0x0A
+.equ    SCAN_LIMIT,             0x0B
+.equ    SHUTDOWN,               0x0C
+.equ    DISPLAY_TEST,           0x0F
+
+.equ    CLOCK,                  0x08
+.equ    DATA,                   0x10
+.equ    LOAD,                   0x20
 
 main:
-    bl      Initial
+    bl      Init
 Loop:
     bl      Display0toF
-    b Loop
+    b       Loop
 
-Display0toF:
+
+Init:
     push    {lr}
-    mov     r4,     #0
-Display0toFLoop:
-    mov     r0,     #1
-    ldr     r2,     =arr
-    ldrb    r1,     [r2,    r4]
-    bl      MAX7219Send
-    bl      Delay
-    add     r4,     r4,     #1
-    cmp     r4,     #16
-    bne     Display0toFLoop
+    bl      GPIOInit
+    bl      MAX7219Init
     pop     {pc}
 
-Delay:
-    mov     r2,     #(1 << 20)
-DelayLoop:
-    sub     r2,     r2,     #1
-    cmp     r2,     #0
-    bne     DelayLoop
-    bx      lr
-
-Initial:
+GPIOInit:
     push    {lr}
-    bl      GPIO_init
-    bl      max7219_init
+    bl      SetRCC_AHB2ENR
+    bl      SetGPIO_MODER
+    bl      SetGPIO_OSPEEDR
     pop     {pc}
 
-GPIO_init:
+SetRCC_AHB2ENR:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =RCC_AHB2ENR
+    mov     r1,     #0x2
+    str     r1,     [r0]
+    pop     {r0,    r1,     pc}
+
+SetGPIO_MODER:
     push    {lr}
-    bl      set_RCC_AHB2ENR
-    bl      set_GPIO_MODER
-    bl      set_GPIO_OSPEEDR
+    bl      SetGPIOB_MODER
     pop     {pc}
 
-set_RCC_AHB2ENR:
-    mov     r1,     #0x2                                //  Set PB on
-    ldr     r0,     =RCC_AHB2ENR                        //  Load RCC address
-    str     r1,     [r0]                                //  Store back to RCC address
-    bx      lr
+SetGPIOB_MODER:
+    push    {r0,    r1,     r2,     lr}
+    ldr     r0,     =GPIOB_BASE
+    ldr     r1,     =GPIO_MODER_OFFSET
+    ldr     r2,     [r0,    r1]
+    and     r2,     #0xFFFFF03F
+    orr     r2,     #0x00000540
+    str     r2,     [r0,    r1]
+    pop     {r0,    r1,     r2,     pc}
 
-set_GPIO_MODER:
-    ldr     r0,     =GPIOB_MODER                        //  Load MODER address
-    ldr     r1,     [r0]                                //  Load MODER current value
-    and     r1,     #0xFFFFF03F                         //  Clear target address
-    orr     r1,     #0x00000540                         //  Write into target address
-    ldr     r0,     =GPIOB_MODER                        //  Load MODER address
-    str     r1,     [r0]                                //  Store back to MODER address
-    bx      lr
-
-set_GPIO_OSPEEDR:
-    mov     r1,     #0x800                              //  Set ouput speed
-    ldr     r0,     =GPIOB_OSPEEDR                      //  Load OSPEEDR address
-    strh    r1,     [r0]                                //  Store back to OSPEEDR address
-    bx      lr
-
-max7219_init:
+SetGPIO_OSPEEDR:
     push    {lr}
-    ldr     r0,     =#DECODE_MODE
-    ldr     r1,     =#0x0
+    bl      SetGPIOB_OSPEEDR
+    pop     {pc}
+
+SetGPIOB_OSPEEDR:
+    push    {r0,    r1,     r2,     lr}
+    ldr     r0,     =GPIOB_BASE
+    ldr     r1,     =GPIO_OSPEEDR_OFFSET
+    mov     r2,     #0x800
+    strh    r2,     [r0,    r1]
+    pop     {r0,    r1,     r2,     pc}
+
+MAX7219Init:
+    push    {lr}
+    bl      SetMAX7219_DECODE_MODE
+    bl      SetMAX7219_DISPLAY_TEST
+    bl      SetMAX7219_SCAN_LIMIT
+    bl      SetMAX7219_INTENSITY
+    bl      SetMAX7219_SHUTDOWN
+    bl      ResetMAX7219Digit
+    pop     {pc}
+
+SetMAX7219_DECODE_MODE:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =DECODE_MODE
+    ldr     r1,     =#0x00
     bl      MAX7219Send
-    ldr     r0,     =#DISPLAY_TEST
-    ldr     r1,     =#0x0
+    pop     {r0,    r1,     pc}
+
+SetMAX7219_DISPLAY_TEST:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =DISPLAY_TEST
+    ldr     r1,     =#0x00
     bl      MAX7219Send
-    ldr     r0,     =#SCAN_LIMIT
-    ldr     r1,     =#0x7
+    pop     {r0,    r1,     pc}
+
+SetMAX7219_SCAN_LIMIT:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =SCAN_LIMIT
+    ldr     r1,     =#0x00
     bl      MAX7219Send
-    ldr     r0,     =#INTENSITY
-    ldr     r1,     =#0xA
+    pop     {r0,    r1,     pc}
+
+SetMAX7219_INTENSITY:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =INTENSITY
+    ldr     r1,     =#0x0A
     bl      MAX7219Send
+    pop     {r0,    r1,     pc}
+
+SetMAX7219_SHUTDOWN:
+    push    {r0,    r1,     lr}
     ldr     r0,     =#SHUTDOWN
     ldr     r1,     =#0x1
     bl      MAX7219Send
-    mov     r4,     #0
-max7219_initLoop:
-    add     r4,     r4,     #1
-    mov     r0,     r4
+    pop     {r0,    r1,     pc}
+
+ResetMAX7219Digit:
+    push    {r0,    r1,     lr}
+    mov     r0,     #8
     mov     r1,     #0
+ResetMAX7219DigitLoop:
     bl      MAX7219Send
-    cmp     r4,     #8
-    bne     max7219_initLoop
-    pop     {pc}
+    subs    r0,     r0,     #1
+    bne     ResetMAX7219DigitLoop
+    pop     {r0,    r1,     pc}
 
 MAX7219Send:
+    push    {r0,    r1,     r2,     lr}
     lsl     r0,     r0,     #8
-    add     r1,     r0,     r1
-    mov     r2,     #16
+    orr     r0,     r0,     r1
+    rbit    r0,     r0
+    lsr     r0,     #16
+    mov     r1,     #16
 MAX7219SendLoop:
-    ldr     r3,     =#CLOCK
-    ldr     r0,     =GPIOB_BRR
-    str     r3,     [r0]
-    sub     r2,     r2,     #1
-    mov     r3,     #1
-    lsl     r3,     r3,     r2
-    tst     r1,     r3
-    beq     bit_not_set
-    ldr     r3,     =#DATA
-    ldr     r0,     =GPIOB_BSRR
-    str     r3,     [r0]
-    b       done
-bit_not_set:
-    ldr     r3,     =#DATA
-    ldr     r0,     =GPIOB_BRR
-    str     r3,     [r0]
-done:
-    ldr     r3,     =#CLOCK
-    ldr     r0,     =GPIOB_BSRR
-    str     r3,     [r0]
-    cmp     r2,     #0
+    ldr     r2,     =CLOCK
+    bl      BitReset
+    ldr     r2,     =DATA
+    tst     r0,     #1
+    it      ne
+    blne    BitSet
+    it      eq
+    bleq    BitReset
+    ldr     r2,     =CLOCK
+    bl      BitSet
+    lsr     r0,     r0,     #1
+    subs    r1,     r1,     #1
     bne     MAX7219SendLoop
-    ldr     r3,     =#LOAD
-    ldr     r0,     =GPIOB_BRR
-    str     r3,     [r0]
-    ldr     r3,     =#LOAD
-    ldr     r0,     =GPIOB_BSRR
-    str     r3,     [r0]
-    bx      lr
+    ldr     r2,     =LOAD
+    bl      BitSet
+    bl      BitReset
+    pop     {r0,    r1,     r2,     pc}
+
+BitSet:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =GPIOB_BASE
+    ldr     r1,     =GPIO_BSRR_OFFSET
+    str     r2,     [r0,    r1]
+    pop     {r0,    r1,     pc}
+
+BitReset:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =GPIOB_BASE
+    ldr     r1,     =GPIO_BRR_OFFSET
+    str     r2,     [r0,    r1]
+    pop     {r0,    r1,     pc}
+
+Display0toF:
+    push    {r0,    r1,     r2,     r3,     lr}
+    ldr     r2,     =arr
+    mov     r0,     #1
+    mov     r3,     #0
+Display0toFLoop:
+    ldrb    r1,     [r2,    r3]
+    bl      MAX7219Send
+    bl      Delay
+    add     r3,     r3,     #1
+    cmp     r3,     #16
+    bne     Display0toFLoop
+    pop     {r0,    r1,     r2,     r3,     pc}
     
+Delay:
+    push    {r0,    lr}
+    ldr     r0,     =delay_counter
+    ldr     r0,     [r0]
+DelayLoop:
+    subs    r0,     r0,     #1
+    bne     DelayLoop
+    pop     {r0,    pc}
 
-
-
-.bss
