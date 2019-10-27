@@ -31,7 +31,7 @@ main:
     bl MAX7219_init
     bl Systick_init
 loop:
-    mov     r0,     0x01
+    mov     r0,     #0x01
     ldr     r1,     =arr
     ldr     r4,     =i
     ldr     r4,     [r4]
@@ -44,14 +44,14 @@ GPIO_init:
     // Enable AHB2 clock for GPIOB
     ldr     r0,     =RCC_AHB2ENR
     ldr     r1,     [r0]
-    orr     r1,     r1,     0x02
+    orr     r1,     r1,     #0x02
     str     r1,     [r0]
 
     // Set GPIO PB3,4,5 as output
     ldr     r0,     =GPIOB_MODER
     ldr     r1,     [r0]
-    and     r1,     r1,     0xFFFFF03F
-    orr     r1,     r1,     0x540
+    and     r1,     r1,     #0xFFFFF03F
+    orr     r1,     r1,     #0x540
     str     r1,     [r0]
 
     mov     r1,     #0xA800
@@ -62,6 +62,18 @@ GPIO_init:
 MAX7219_init:
     mov     r0,     #0x0C
     mov     r1,     #0x01
+    push    {lr}
+    bl      send_packet
+    pop     {lr}
+    // Scan one digit
+    mov     r0,     #0x0B
+    mov     r1,     #0x00
+    push    {lr}
+    bl      send_packet
+    pop     {lr}
+    // Decode mode
+    mov     r0,     #0x09
+    mov     r1,     #0x00
     push    {lr}
     bl      send_packet
     pop     {lr}
