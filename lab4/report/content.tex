@@ -12,7 +12,7 @@ We're going to control GPIO pins to communicate with MAX7219, and display the me
 \section{Experiment Procedure}
 \subsection{Initialization and Communication}
 \paragraph{}
-First of all, we need to communicate with MAX7219 in order to control it. The communication between microprocess and MAX7219 by 3 pins, one of them is data input, another is clock and the other is end-of-input controller. A legal communication between microprocess and MAX7219 consist of 16 bits data. MAX7219 will read one bit when the clock in the positive edge triggered. Therefore, we can set the clock into 0 first, set data pin into correct bit and set the clock into 1. MAX7219 will receive one bit and repeat it 16 times. Finally, set end-of-input pin up and down to complete the communication. The code will be listed below as a reference.
+First of all, we need to communicate with MAX7219 in order to control it. The communication between microprocessor and MAX7219 by 3 pins, one of them is data input, another is clock and the other is end-of-input controller. A legal communication between microprocessor and MAX7219 consist of 16 bits data. MAX7219 will read one bit when the clock in the positive edge triggered. Therefore, we can set the clock into 0 first, set data pin into correct bit and set the clock into 1. MAX7219 will receive one bit and repeat it 16 times. Finally, set end-of-input pin up and down to complete the communication. The code will be listed below as a reference.
 \begin{lstlisting}
 MAX7219Send:
     //  Input: r0, r1. response to message X send to MAX7219. X[0-7]: r1, X[8-15]: r0
@@ -162,6 +162,106 @@ DelayLoop:
     pop     {r0,    pc}
 \end{lstlisting}
 \subsection{Display Student ID}
+\paragraph{}
+In this lab, we need to set the value of the decode-mode register to \texttt{0xFF} for MAX7219 to decode all the digits.
+Besides, the value of scan-limit register should also be set to \texttt{0x06} to diaplying the digits.
+\paragraph{}
+Since only displaying ID is required, we run a single loop to send data for each digit and then get into an dummy infinite loop.
+In the display loop, we treat \texttt{r2} as base and \texttt{r3} as offset, and load byte from address \texttt{[r2, r3]}. 
+We also increment address field for MAX7219Send and the offset to load, and they can be stored in \texttt{r0} and \texttt{r1} as parameters for MAX7219Send.
+The code below shows the main program and the display loop:
+\begin{lstlisting}
+main:
+    bl      Init
+    bl      Display
+Loop:
+    b       Loop
+
+Display:
+    push    {r0,    r1,     r2,     lr}
+    ldr     r2,     =student_id
+    mov     r3,     #0
+    mov     r0,     #7
+DisplayLoop:
+    ldrb    r1,     [r2,    r3]
+    bl      MAX7219Send
+    sub     r0,     r0,     #1
+    add     r3,     r3,     #1
+    cmp     r3,     #7
+    bne     DisplayLoop
+    pop     {r0,    r1,     r2,     pc}
+\end{lstlisting}
 \subsection{Fibonacci Sequence with Button Control}
+\paragraph{}
+In this part, there comes the input, and we also need conversion from binary numbers to the decimal result in our method.
+In the main loop, we firstly update the debounce counter(btn\_counter) in label \texttt{ReadBtn},
+then determine whether should it update the displayed value or not.
+If so, we call the \texttt{Display} subroutine, which checks that the value is valid,
+update the value in variable \texttt{fib1}, then display the value in stored in it.
+\paragraph{}
+In \texttt{ReadBtn}, we add the counter and update the button-pushed signal,
+which may either set \texttt{fib\_chg} to \texttt{1} or trigger \texttt{FibReset} subroutine based on the counter value.
+This part is basically similar to the push button reading in lab3. Below show some difference that contains detection of 1-second push:
+\begin{lstlisting}
+HandleBtnSignal:
+    ldr     r0,     =btn_counter
+    ldr     r1,     [r0]
+    ldr     r0,     =btn_bounce_limit
+    ldr     r2,     [r0]
+    cmp     r1,     r2
+    blt     ReadBtnEnd
+    ldr     r0,     =btn_prev
+    ldr     r1,     [r0]
+    cmp     r1,     #0
+    beq     BtnBePushedSignal
+    bne     BtnUnPushedSignal
+BtnBePushedSignal:
+    ldr     r0,     =btn_counter
+    ldr     r1,     [r0]
+    ldr     r0,     =btn_reset_limit    // <-- This is larger than btn_bounce_limit and close to one second duration when being counted up to it.
+    ldr     r2,     [r0]
+    cmp     r1,     r2
+    bgt     FibReset
+    ldr     r0,     =btn_chg
+    ldr     r1,     [r0]
+    cmp     r1,     #1
+    beq     ReadBtnEnd
+    mov     r1,     #1
+    str     r1,     [r0]
+    ldr     r0,     =fib_chg
+    mov     r1,     #1
+    str     r1,     [r0]
+    b       ReadBtnEnd
+\end{lstlisting}
+\paragraph{}
+For the display part, we check if the current number is zero or greater than our diaplay limit, then compute the next fibonacci number.
+After that we display the number in the \texttt{DisplayNumber} label.
+This subroutine obtains each decimal digit in the number by keeping divide it by 10 and get the remainder,
+then display the number at the corresponding position.
+Below is the code for \texttt{DisplayNumber} which displays non-zero value in register \texttt{r3}
+\begin{lstlisting}
+DisplayNumber:
+    mov     r0,     #1
+    mov     r2,     #10
+    ldr     r3,     =fib1
+    ldr     r3,     [r3]
+DisplayNumberLoop:
+    cmp     r3,     #0
+    beq     DisplayEnd
+    sdiv    r1,     r3,     r2
+    mul     r1,     r1,     r2
+    sub     r1,     r3,     r1
+    sdiv    r3,     r3,     r2
+    bl      MAX7219Send
+    add     r0,     r0,     #1
+    b       DisplayNumberLoop
+    
+DisplayEnd:
+    pop     {r0,    r1,     r2,     r3,     pc}
+\end{lstlisting}
 \section{Feedback}
 \paragraph{}
+During our experiments, we found that if we don't clear out the register of MAX7219(or don't switch off its power completely),
+The values of the registers will be messed up.
+For such situation, we set up almost every registers explicitly in the initialization code.
+It made the code tedious while improved our understanding about MAX7219 driver.
