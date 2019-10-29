@@ -1,10 +1,29 @@
-\title{Lab1 ARM Assembly 1}
+\title{Lab4 7-Segment LED}
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
-\section{What 實驗要做什麼}
+\section{Objectives}
 \paragraph{}
-\section{How 實驗過程}
+With the help of GPIO, we are able to craft variable signals for external devices.
+In this lab, the MAX7219 LED display driver runs the role.
+We're going to control GPIO pins to communicate with MAX7219, and display the messages assigned in the spec.
+
+\section{Experiment Procedure}
+\subsection{Sending the Packet}
+\paragraph{}
+As lab note stated, the signals sent to MAX7219 is synchronized by the \texttt{CLK} pin, 
+and the data on \texttt{DIN} pin is stored into the shift registers on it.
+When pin \texttt{CS} rises to high level, MAX7219 latches the content in the shift register and store it into corresponding registers according to the address field in the packet.
+\paragraph{}
+Since MAX7219 only recognizes rising edge of the signal of pin \texttt{CLK},
+and the system clock(4MHz) is slower than the maximum allowed frequency of MAX7219,
+we don't need to perform any delay to make each clock cycle equal.
+With given address in register \texttt{r0} and data in \texttt{r1} as parameters,
+we constructed the function \texttt{MAX7219Send} as follows:
+\begin{listlst}
+
+\end{listlst}
+\subsection{4-1 MAX7219 in non-decode mode}
 \paragraph{}
 \section{Feedback 實驗心得}
 \paragraph{}
