@@ -6,24 +6,162 @@
 \paragraph{}
 With the help of GPIO, we are able to craft variable signals for external devices.
 In this lab, the MAX7219 LED display driver runs the role.
-We're going to control GPIO pins to communicate with MAX7219, and display the messages assigned in the spec.
+We're going to control GPIO pins to communicate with MAX7219, and display the messages assigned in the spec
+(a counter, displaying student ID and showing fibonacci sequence controlled by a button).
 
 \section{Experiment Procedure}
-\subsection{Sending the Packet}
+\subsection{Initialization and Communication}
 \paragraph{}
-As lab note stated, the signals sent to MAX7219 is synchronized by the \texttt{CLK} pin, 
-and the data on \texttt{DIN} pin is stored into the shift registers on it.
-When pin \texttt{CS} rises to high level, MAX7219 latches the content in the shift register and store it into corresponding registers according to the address field in the packet.
-\paragraph{}
-Since MAX7219 only recognizes rising edge of the signal of pin \texttt{CLK},
-and the system clock(4MHz) is slower than the maximum allowed frequency of MAX7219,
-we don't need to perform any delay to make each clock cycle equal.
-With given address in register \texttt{r0} and data in \texttt{r1} as parameters,
-we constructed the function \texttt{MAX7219Send} as follows:
-\begin{listlst}
+First of all, we need to communicate with MAX7219 in order to control it. The communication between microprocess and MAX7219 by 3 pins, one of them is data input, another is clock and the other is end-of-input controller. A legal communication between microprocess and MAX7219 consist of 16 bits data. MAX7219 will read one bit when the clock in the positive edge triggered. Therefore, we can set the clock into 0 first, set data pin into correct bit and set the clock into 1. MAX7219 will receive one bit and repeat it 16 times. Finally, set end-of-input pin up and down to complete the communication. The code will be listed below as a reference.
+\begin{lstlisting}
+MAX7219Send:
+    //  Input: r0, r1. response to message X send to MAX7219. X[0-7]: r1, X[8-15]: r0
+    push    {r0,    r1,     r2,     lr}
+    lsl     r0,     r0,     #8
+    orr     r0,     r0,     r1
+    rbit    r0,     r0
+    lsr     r0,     #16
+    mov     r1,     #16
+MAX7219SendLoop:
+    ldr     r2,     =CLOCK
+    bl      BitReset
+    ldr     r2,     =DATA
+    tst     r0,     #1
+    it      ne
+    blne    BitSet
+    it      eq
+    bleq    BitReset
+    ldr     r2,     =CLOCK
+    bl      BitSet
+    lsr     r0,     r0,     #1
+    subs    r1,     r1,     #1
+    bne     MAX7219SendLoop
+    ldr     r2,     =LOAD
+    bl      BitSet
+    bl      BitReset
+    pop     {r0,    r1,     r2,     pc}
 
-\end{listlst}
-\subsection{4-1 MAX7219 in non-decode mode}
+BitSet:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =GPIOB_BASE
+    ldr     r1,     =GPIO_BSRR_OFFSET
+    str     r2,     [r0,    r1]
+    pop     {r0,    r1,     pc}
+
+BitReset:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =GPIOB_BASE
+    ldr     r1,     =GPIO_BRR_OFFSET
+    str     r2,     [r0,    r1]
+    pop     {r0,    r1,     pc}
+\end{lstlisting}
 \paragraph{}
-\section{Feedback 實驗心得}
+We can use this function to send a 16bit message to MAX7219 and setup the MAX7219 conveniently. There are some register on MAX7219 we need to set in order to make it work properly.
+\begin{lstlisting}
+MAX7219Init:
+    push    {lr}
+    bl      SetMAX7219_DECODE_MODE
+    bl      SetMAX7219_DISPLAY_TEST
+    bl      SetMAX7219_SCAN_LIMIT
+    bl      SetMAX7219_INTENSITY
+    bl      SetMAX7219_SHUTDOWN
+    bl      ResetMAX7219Digit
+    pop     {pc}
+\end{lstlisting}
+\subsection{Display0toF}
+\paragraph{}
+In this section, we need to implement a counter counting 0 to F with 1 second delay between each digit. 
+\paragraph{}
+First of all, we need to initialize MAX7219.
+\begin{lstlisting}
+SetMAX7219_DECODE_MODE:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =DECODE_MODE
+    ldr     r1,     =#0x00
+    bl      MAX7219Send
+    pop     {r0,    r1,     pc}
+
+SetMAX7219_DISPLAY_TEST:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =DISPLAY_TEST
+    ldr     r1,     =#0x00
+    bl      MAX7219Send
+    pop     {r0,    r1,     pc}
+
+SetMAX7219_SCAN_LIMIT:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =SCAN_LIMIT
+    ldr     r1,     =#0x00
+    bl      MAX7219Send
+    pop     {r0,    r1,     pc}
+
+SetMAX7219_INTENSITY:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =INTENSITY
+    ldr     r1,     =#0x0A
+    bl      MAX7219Send
+    pop     {r0,    r1,     pc}
+
+SetMAX7219_SHUTDOWN:
+    push    {r0,    r1,     lr}
+    ldr     r0,     =#SHUTDOWN
+    ldr     r1,     =#0x1
+    bl      MAX7219Send
+    pop     {r0,    r1,     pc}
+\end{lstlisting}
+Because we need to display A to F, the decode mode in MAX7219 doesn't support the english digit. Therefore we must control the 7 segment display in non-decode mode, and set each led on or off seperately.
+The table of each digit and their corresponding led configuration(D7~D0) is given below:
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|l|l|l|l|l|l|l|}
+\hline
+  & D7 & D6 & D5 & D4 & D3 & D2 & D1 & D0 &     \\ \hline
+  & P  & A  & B  & C  & d  & E  & F  & G  & HEX \\ \hline
+0 & 0  & 1  & 1  & 1  & 1  & 1  & 1  & 0  & 7E  \\ \hline
+1 & 0  & 0  & 1  & 1  & 0  & 0  & 0  & 0  & 30  \\ \hline
+2 & 0  & 1  & 1  & 0  & 1  & 1  & 0  & 1  & 6D  \\ \hline
+3 & 0  & 1  & 1  & 1  & 1  & 0  & 0  & 1  & 79  \\ \hline
+4 & 0  & 0  & 1  & 1  & 0  & 0  & 1  & 1  & 33  \\ \hline
+5 & 0  & 1  & 0  & 1  & 1  & 0  & 1  & 1  & 5B  \\ \hline
+6 & 0  & 1  & 0  & 1  & 1  & 1  & 1  & 1  & 5F  \\ \hline
+7 & 0  & 1  & 1  & 1  & 0  & 0  & 0  & 0  & 70  \\ \hline
+8 & 0  & 1  & 1  & 1  & 1  & 1  & 1  & 1  & 7F  \\ \hline
+9 & 0  & 1  & 1  & 1  & 1  & 0  & 1  & 1  & 7B  \\ \hline
+A & 0  & 1  & 1  & 1  & 0  & 1  & 1  & 1  & 77  \\ \hline
+b & 0  & 0  & 0  & 1  & 1  & 1  & 1  & 1  & 1F  \\ \hline
+C & 0  & 1  & 0  & 0  & 1  & 1  & 1  & 0  & 4E  \\ \hline
+d & 0  & 0  & 1  & 1  & 1  & 1  & 0  & 1  & 3D  \\ \hline
+E & 0  & 1  & 0  & 0  & 1  & 1  & 1  & 1  & 4F  \\ \hline
+F & 0  & 1  & 0  & 0  & 0  & 1  & 1  & 1  & 47  \\ \hline
+\end{tabular}
+\end{table}
+\paragraph{}
+Finally, we just iterate through this 16 state and display them with 1 second delay.
+\begin{lstlisting}
+Display0toF:
+    push    {r0,    r1,     r2,     r3,     lr}
+    ldr     r2,     =arr
+    mov     r0,     #1
+    mov     r3,     #0
+Display0toFLoop:
+    ldrb    r1,     [r2,    r3]
+    bl      MAX7219Send
+    bl      Delay
+    add     r3,     r3,     #1
+    cmp     r3,     #16
+    bne     Display0toFLoop
+    pop     {r0,    r1,     r2,     r3,     pc}
+
+Delay:
+    push    {r0,    lr}
+    ldr     r0,     =delay_counter
+    ldr     r0,     [r0]
+DelayLoop:
+    subs    r0,     r0,     #1
+    bne     DelayLoop
+    pop     {r0,    pc}
+\end{lstlisting}
+\subsection{Display Student ID}
+\subsection{Fibonacci Sequence with Button Control}
+\section{Feedback}
 \paragraph{}
