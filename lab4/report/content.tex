@@ -1,12 +1,16 @@
-\title{Lab2 ARM Assembly 2}
+\title{Lab4 7-Segment LED}
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
 \section{Objectives}
 \paragraph{}
-As the specification, using microprocess to control MAX7219 to display simple counter, show our student id and fibonacci number with button.
+With the help of GPIO, we are able to craft variable signals for external devices.
+In this lab, the MAX7219 LED display driver runs the role.
+We're going to control GPIO pins to communicate with MAX7219, and display the messages assigned in the spec
+(a counter, displaying student ID and showing fibonacci sequence controlled by a button).
+
 \section{Experiment Procedure}
-\subsection{Pre-processing}
+\subsection{Initialization and Communication}
 \paragraph{}
 First of all, we need to communicate with MAX7219 in order to control it. The communication between microprocess and MAX7219 by 3 pins, one of them is data input, another is clock and the other is end-of-input controller. A legal communication between microprocess and MAX7219 consist of 16 bits data. MAX7219 will read one bit when the clock in the positive edge triggered. Therefore, we can set the clock into 0 first, set data pin into correct bit and set the clock into 1. MAX7219 will receive one bit and repeat it 16 times. Finally, set end-of-input pin up and down to complete the communication. The code will be listed below as a reference.
 \begin{lstlisting}
@@ -52,7 +56,7 @@ BitReset:
     pop     {r0,    r1,     pc}
 \end{lstlisting}
 \paragraph{}
-We can use this function to send a 16bit message to MAX7219 and setup the MAX7219 conveniently. There are some register we need to set in order to make MAX7219 work.
+We can use this function to send a 16bit message to MAX7219 and setup the MAX7219 conveniently. There are some register on MAX7219 we need to set in order to make it work properly.
 \begin{lstlisting}
 MAX7219Init:
     push    {lr}
@@ -105,7 +109,8 @@ SetMAX7219_SHUTDOWN:
     bl      MAX7219Send
     pop     {r0,    r1,     pc}
 \end{lstlisting}
-Because we need to display A to F, the decode mode in MAX7219 doesn't support the english digit. Therefore we must control the 7 segment display by ourselves.
+Because we need to display A to F, the decode mode in MAX7219 doesn't support the english digit. Therefore we must control the 7 segment display in non-decode mode, and set each led on or off seperately.
+The table of each digit and their corresponding led configuration(D7~D0) is given below:
 \begin{table}[h]
 \centering
 \begin{tabular}{|l|l|l|l|l|l|l|l|l|l|}
@@ -160,4 +165,3 @@ DelayLoop:
 \subsection{Fibonacci Sequence with Button Control}
 \section{Feedback}
 \paragraph{}
-The main objectives of this lab are being familiar to the operation of stack. This is my first time to manipulate the system stack to handle the recurrsive function and I come to realize that computers help me to do lots of things when I use the high-level language.

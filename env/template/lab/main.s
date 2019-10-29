@@ -5,6 +5,7 @@
 .global main
 .equ AA, 0x55AA
 
+.thumb_func
 main:
     movs r0,#(AA&0xFF)
     orrs r0, r0,#(AA&0xFF00)

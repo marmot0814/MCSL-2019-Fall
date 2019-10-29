@@ -1,10 +1,112 @@
-\title{Lab1 ARM Assembly 1}
+\title{Lab3 STM32 GPIO System}
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
-\section{What 實驗要做什麼}
+\section{Objectives}
 \paragraph{}
-\section{How 實驗過程}
+In this lab, we're going to use general purpose IO ports and make programs that interacts with user,
+which includes LED outputs, push button and DIP switch inputs.
+
+\section{Experiment Procedures}
+\subsection{The Initialization for GPIO}
 \paragraph{}
-\section{Feedback 實驗心得}
+As a peripherals, the GPIO system involves controls to the bridge it belongs to, which is AHB,
+thus we need to enable its clock to drive the GPIO system.
+For the GPIO system itself, we need to set up its mode(input/output), type, speed, and pull up/down resistors in our case.
+All of the registers involving these attributes are mapped to their corresponding memory addresses, 
+thus the value can be easily set by load/store instructions.
 \paragraph{}
+We give the following code to show the initialization of an output pin,
+the procedure for an input pin is similar with difference in IO mode, the input/output register to read/write,
+and pull up/down mode in some cases.
+\begin{lstlisting}
+GPIO_init:
+    push    {lr}
+    bl      set_RCC_AHB2ENR
+    bl      set_GPIO_MODER
+    bl      set_GPIO_OSPEEDR
+    pop     {pc}
+
+set_RCC_AHB2ENR:
+    mov     r1,     #0x2                                //  Set PB on
+    ldr     r0,     =RCC_AHB2ENR                        //  Load RCC address
+    str     r1,     [r0]                                //  Store 0x2 into RCC
+    bx      lr  
+
+set_GPIO_MODER:
+    ldr     r0,     =GPIOB_MODER                        //  Load MODER address
+    ldr     r1,     [r0]                                //  Load MODER current value
+    and     r1,     #0xFFFFC03F                         //  Clear target address
+    orr     r1,     #0x00001540                         //  Write into target address
+    ldr     r0,     =GPIOB_MODER                        //  Load MODER address
+    str     r1,     [r0]                                //  Store back to MODER address
+    bx      lr  
+
+set_GPIO_OSPEEDR:
+    mov     r1,     #0x800                              //  Set ouput speed
+    ldr     r0,     =GPIOB_OSPEEDR                      //  Load OSPEEDR address
+    strh    r1,     [r0]                                //  Store back to OSPEEDR address
+    bx      lr  
+\end{lstlisting}
+
+\subsection{Pattern}
+\paragraph{}
+We connect \texttt{3.3V} pin to the anodes of the four LEDs, and connect a resistor in series for each LED. 
+The cathode of them are connected to \texttt{PB3}~\texttt{PB6}.
+In such manner, the output will be in active-low logic.
+
+\paragraph{}
+For the configuration of GPIO registers,
+we set four consecutive pins as output to make setting values in output register by shifting possible.
+The \texttt{leds} variable represents the shift amount.
+In a single round, it goes from \texttt{0} to \texttt{4}, then go back to \texttt{0}.
+This is done by checking the value of \texttt{leds} and adding the difference \texttt{mvr} at each step.
+Then the value of the ouput register will be \texttt{0x0C << leds}.
+The code below is how we mutate \texttt{leds}, where \texttt{mvr} is always $1$ or $-1$:
+
+\begin{lstlisting}
+    ldr     r0,     =mvr                                //  Load mover address
+    ldr     r2,     [r0]                                //  Load mover value
+    ldr     r0,     =leds                               //  Load leds offset address
+    ldr     r1,     [r0]                                //  Load leds offset value
+    add     r1,     r1,     r2                          //  Update offset value
+    ldr     r0,     =leds                               //  Load leds offset address
+    str     r1,     [r0]                                //  Store back to leds offset address
+                                                        //  Update move value
+    cmp     r1,     #0                                  //  If leds offset value equal to 0
+    beq     ReverseMVR                                  //      Reverse mover
+    cmp     r1,     #4                                  //  If leds offset value equal to 4
+    beq     ReverseMVR                                  //      Reverse mover
+    bx      lr
+\end{lstlisting}
+
+\paragraph{}
+The remain work became timing. We've known that the \texttt{SYSCLK} is 4MHz at the reset state.
+Therefore we may keep a counter, change the pattern when the counter counts to \texttt{0}.
+Since the countdown and check procedure consumes fixed CPU cycles, we may calculate the counter value from the number of such cycles.
+
+\subsection{Push Button}
+\paragraph{}
+The point for this lab is debounce. We keep a counter and add it down as we read the high level on the pin.
+When its value come above the threshold set by us, we consider it to be pressed and set a variable to indicate that it is changed.
+\subsection{Password}
+In this lab, we have 4 more inputs than the previous one, but the four inputs don't need debouncing.
+So this is basically the combination of lab 3-1, 3-2 with some program state transition.
+
+\section{Feedback}
+\subsection{The Attempt for Timer}
+\paragraph{}
+In the beginning, we intended to use \texttt{SysTick} handler to change the pattern of the LEDs,
+so that we would not need to implement busy waiting on our own.
+We kept failing until we almost finished the whole lab,
+and found out that \texttt{.thumb\_func} should be placed on handler symbol declarations,
+or it will assert a UsageFault.
+We didn't use this solution since it still need some modification.
+Hope it made us more familiar with timers in the future.
+
+\subsection{Maintainability}
+\paragraph{}
+The control flow of the program became more complex, since it needs to wait for input or output rather than doing all the work on its own.
+Consequently, we need to keep the code maintainable and seperate independent works into subroutines.
+Therefore we use stack to store more state instead of leaving everything messy in the registers, 
+and the calling procedure is becoming more like a calling convention.
