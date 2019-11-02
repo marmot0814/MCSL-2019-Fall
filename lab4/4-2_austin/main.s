@@ -26,7 +26,7 @@ loop:
     adds    r1,     r1,     #0x06
     ldrb    r1,     [r1]
     push    {r4}
-    bl      send_packet
+    bl      max7219_send
     pop     {r4}
     subs    r4,     r4,     #0x1
     bge     loop
@@ -57,23 +57,23 @@ MAX7219_init:
     mov     r0,     #0x0C
     mov     r1,     #0x01
     push    {lr}
-    bl      send_packet
+    bl      max7219_send
     pop     {lr}
     // Scan all digits
     mov     r0,     #0x0B
     mov     r1,     #0x07
     push    {lr}
-    bl      send_packet
+    bl      max7219_send
     pop     {lr}
     // Decode mode
     mov     r0,     #0x09
     mov     r1,     #0xFF
     push    {lr}
-    bl      send_packet
+    bl      max7219_send
     pop     {lr}
     bx lr
 
-send_packet:
+max7219_send:
     rbit    r0,     r0
     rbit    r1,     r1
     lsr     r0,     r0,     #0x18
