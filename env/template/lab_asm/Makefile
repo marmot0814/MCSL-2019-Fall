@@ -14,8 +14,8 @@ main.elf: start.o main.o
 start.o: start.s
 	$(CC) $(CC_FLAGS) -o start.o start.s
 
-main.o: main.c
-	$(CC) $(CC_FLAGS) -o main.o main.c
+main.o: main.s
+	$(CC) $(CC_FLAGS) -o main.o main.s
 
 
 clean:

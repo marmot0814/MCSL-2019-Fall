@@ -61,8 +61,6 @@ bss_zero_loop:
     bgt bss_zero_loop
 _run:
     bl main
-_program_end:
-    b _program_end
 
 __sidata: .word _sidata
 __sdata: .word _sdata
