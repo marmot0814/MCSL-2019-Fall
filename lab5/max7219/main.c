@@ -3,7 +3,7 @@
 extern void GPIO_init();
 extern void max7219_send(int addr, int data);
 
-int id[8] = {0, 6, 1, 6, 0, 6, 9};
+int id[8] = {0, 6, 1, 6, 0, 6, 4};
 
 #pragma thumb
 int main() {
