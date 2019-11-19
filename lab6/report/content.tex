@@ -1,4 +1,4 @@
-\title{Lab1 ARM Assembly 1}
+\title{Lab6 STM32 Clock and Timer}
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
@@ -6,5 +6,17 @@
 \paragraph{}
 \section{How 實驗過程}
 \paragraph{}
-\section{Feedback 實驗心得}
+\section{Feedback}
+\subsection{PLL Clock Configuration}
 \paragraph{}
+In lab 6-1, we were determining proper values for \texttt{N, M, R} so that the PLL clock would run at the required frequency.
+Knowing that the value of \texttt{M} ranges from 1 to 8, we set these values into \texttt{PLLCFGR} as same as their bit representation.
+It results in wierd behavior while setting PLL as system clock, 
+and took us several hour to figure out that \texttt{PLLM} field only have 3 bits.
+\subsection{MAX7219 as Debug Console}
+\paragraph{}
+Outputting intermediate results is a common trick in debugging. 
+With \texttt{max7219\_send()} function, we are able to do such work when the cases aren't that complicated.
+However, such approach doesn't work when the clock frequency exceeds 10MHz, which is the maximum working frequency of max7219.
+This told us that timing restrictions should be taken into account when the MCU cooperates with other devices, 
+instead of using highest available frquencies directly.
