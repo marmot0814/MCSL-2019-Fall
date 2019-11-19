@@ -1,4 +1,4 @@
-\title{Lab6 STM32-timer/counter}
+\title{Lab6 STM32 Clock and Timer}
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
@@ -11,20 +11,22 @@
 \end{enumerate}
 \section{Experiment Procedure}
 \subsection{Modify system initial clock}
-\subsubsection{SysTick Initialization}
-\begin{enumerate}
-    \item Enable "Counter enable" and "SysTick exception request enable" bit in STK\_CTRL registor.
-    \item Set STK\_LOAD value
-\end{enumerate}
 \paragraph{}
-First, STK\_VAL will be initialized by STK\_LOAD. When STK\_VAL counts from 1 to 0, the SysTick exception request and COUNTFLAG are activated.
+We use SysTick interrupt to control the blinking of the LED on pin \texttt{PA5},
+and poll for the button state and switch the system clock in the main loop.
+\subsubsection{Initializations}
+\paragraph{}
+Our works for initializations included SysTick, GPIO, and max7219.
+\paragraph{}
+For SysTick, we configured registers \texttt{SYST\_CSR}(exception request enable and enable fields), \texttt{SYST\_RVR} so that the SysTick interrupt will be issued whenever the \texttt{SYST\_CVR} counts to 0.
+The frequency for SysTick is the system clock divided by 8,
+so the reload value \texttt{1000000} would give a blinking period of 1 second at 4MHz clock.
 \begin{lstlisting}
 SysTick->CTRL = 3;
 SysTick->LOAD = 1000000;
 \end{lstlisting}
-\subsubsection{GPIO Initialization}
 \paragraph{}
-We use PA5(on-board LED), PC13(user button) and PB3-5 connected with max7219 as console.
+For GPIO, we use PA5(on-board LED), PC13(user button) and PB3-5 connected with max7219 as debug console.
 \begin{lstlisting}
 void GPIO_init() {
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOBEN | RCC_AHB2ENR_GPIOCEN;
@@ -39,64 +41,11 @@ void GPIO_init() {
 	GPIOB->PUPDR = 0x04000000;
 }
 \end{lstlisting}
-\subsubsection{Switch Clock}
+\subsubsection{Button Polling}
 \paragraph{}
-Because we need to produce 1MHz, 6MHz, 10MHz, 16MHz and 40MHz clock, we will use PLL clock to complete this task.
-\begin{lstlisting}
-void switch_clk(int n, int m, int r) {
-	// switch to MSI clock first
-	while(!(RCC->CR & RCC_CR_MSIRDY));
-	RCC->CFGR = (RCC->CFGR & 0xFFFFFFFC) | 0x00;
-
-	RCC->CR &= (0xFEFFFFFF);
-	while(RCC->CR & RCC_CR_PLLRDY);
-	RCC->PLLCFGR = (RCC->PLLCFGR & 0xF8FF808C) | (r << 25) | (n << 8) | (m << 4) | 0x01;
-	RCC->CR |= 0x01000000;
-	RCC->PLLCFGR |= 0x01000000;
-
-	// switch to PLL clock
-	while(!(RCC->CR & RCC_CR_PLLRDY));
-	RCC->CFGR = (RCC->CFGR & 0xFFFFFFFC) | 0x03;
-}
-\end{lstlisting}
-\paragraph{}
-The ability of this above function is to tune the clock into 4M * n / m / rHz. When we want to change the frequency of the clock. We need to do below things.
-\begin{enumerate}
-    \item Switch to MSI clock
-    \begin{enumerate}
-        \item Wait until MSI clock is stable.
-        \item Swtich clcok into MSI clock.
-    \end{enumerate}
-    \item Set PLL parameters.
-    \begin{enumerate}
-        \item Disable PLL clock.
-        \item Wait until PLL is clear.
-        \item Set n, m and into corresponding postion.
-        \item Enable PLL clock.
-    \end{enumerate}
-    \item Switch back to PLL clock.
-    \begin{enumerate}
-        \item Wait until PLL clock is stable.
-        \item Swtich clcok into PLL clock.
-    \end{enumerate}
-\end{enumerate}
-\subsubsection{Parameter of Each Frequency}
-\begin{itemize}
-    \item  1MHz: n =  8, m = 4, r = 8, 4M *  8 / 4 / 8 =  1MHz
-    \item  6MHz: n = 24, m = 4, r = 4, 4M * 24 / 4 / 4 =  6MHz
-    \item 10MHz: n = 40, m = 4, r = 4, 4M * 40 / 4 / 4 = 10MHz
-    \item 16MHz: n = 64, m = 4, r = 4, 4M * 64 / 4 / 4 = 16MHz
-    \item 40MHz: n = 40, m = 1, r = 4, 4M * 40 / 1 / 4 = 40MHz
-\end{itemize}
-\subsubsection{Debounce Limitation}
-\begin{itemize}
-    \item  1MHz: 512
-    \item  6MHz: 3072
-    \item 10MHz: 5120
-    \item 16MHz: 8192
-    \item 40MHz: 20480
-\end{itemize}
-\subsubsection{Poll Button}
+We rewrote the button polling code in C to improve the readibility.
+The function \texttt{poll\_button()} returns 1 when the static integer counter \texttt{cnt} exceeds the given debounce threshold,
+which means the button is pushed and the corresponding procedure should be executed.
 \begin{lstlisting}
 int poll_button() {
 	static int cnt = 0;
@@ -122,6 +71,7 @@ int main() {
     /* ... */
 	while(1) {
 		if(poll_button()) {
+            /* Procedure when button is pushed */
 			clk_state++;
 			if(clk_state == 5) clk_state = 0;
 			switch_clk(PLLN[clk_state], PLLM[clk_state], PLLR[clk_state]);
@@ -130,7 +80,263 @@ int main() {
     /* ... */
 }
 \end{lstlisting}
+\subsubsection{Clock Switching}
 \paragraph{}
-When the counter larger than debouce limitation for the first time, poll\_button return true and trigger the button-pushed event.
+In the requirement, we need to produce various clock frequency(6MHz, 10MHz, and 40MHz are relatively more special).
+So we used PLL clock as our major system clock source in this lab.
+\paragraph{}
+The clock HSI, MSI, and HSE can be used as the source of PLL, 
+we chose MSI at 4MHz since it is the original system clock, which doesn't need additional configurations.
+The clock will be first divided by the prescalar \texttt{M},
+multiplied by \texttt{N} in the feedback divider of the Phase Lock Loop,
+and then divided by the prescalar \texttt{P, Q, R} for each output on their own.
+The output \texttt{PLLCLK} depends on prescalar \texttt{R}, so given \texttt{n, m, r}, 
+we are able to activate PLL clock we need and make it as the system clock, as the function \texttt{switch\_clk()} follows:
+\begin{lstlisting}
+void switch_clk(int n, int m, int r) {
+	// switch to MSI clock first
+	while(!(RCC->CR & RCC_CR_MSIRDY));
+	RCC->CFGR = (RCC->CFGR & 0xFFFFFFFC) | 0x00;
+
+	RCC->CR &= (0xFEFFFFFF);
+	while(RCC->CR & RCC_CR_PLLRDY);
+	RCC->PLLCFGR = (RCC->PLLCFGR & 0xF8FF808C) | (r << 25) | (n << 8) | (m << 4) | 0x01;
+	RCC->CR |= 0x01000000;
+	RCC->PLLCFGR |= 0x01000000;
+
+	// switch to PLL clock
+	while(!(RCC->CR & RCC_CR_PLLRDY));
+	RCC->CFGR = (RCC->CFGR & 0xFFFFFFFC) | 0x03;
+}
+\end{lstlisting}
+\paragraph{}
+The above function turns the system clock into $4M \times n / m / r$Hz,
+which does the following works:
+\begin{enumerate}
+    \item Switch to MSI clock(since the PLL clock should be turned off when modifying configurations)
+    \begin{enumerate}
+        \item Wait until MSI clock becomes stable.
+        \item Swtich clcok into MSI clock.
+    \end{enumerate}
+    \item Set PLL parameters.
+    \begin{enumerate}
+        \item Disable PLL clock.
+        \item Wait until PLLRDY bit is clear.
+        \item Set \texttt{n, m} and \texttt{r} into corresponding fields in PLLCFGR.
+        \item Enable PLL clock.
+    \end{enumerate}
+    \item Switch back to PLL clock.
+    \begin{enumerate}
+        \item Wait until PLL clock becomes stable.
+        \item Swtich clcok into PLL clock.
+    \end{enumerate}
+\end{enumerate}
+\paragraph{}
+The parameters for each required frequency is given below:
+\begin{itemize}
+    \item  1MHz: n =  8, m = 4, r = 8, 4M $\times$  8 / 4 / 8 =  1MHz
+    \item  6MHz: n = 24, m = 4, r = 4, 4M $\times$ 24 / 4 / 4 =  6MHz
+    \item 10MHz: n = 40, m = 4, r = 4, 4M $\times$ 40 / 4 / 4 = 10MHz
+    \item 16MHz: n = 64, m = 4, r = 4, 4M $\times$ 64 / 4 / 4 = 16MHz
+    \item 40MHz: n = 40, m = 1, r = 4, 4M $\times$ 40 / 1 / 4 = 40MHz
+\end{itemize}
+\paragraph{}
+Together with debounce counting thresholds:
+\begin{itemize}
+    \item  1MHz: 512
+    \item  6MHz: 3072
+    \item 10MHz: 5120
+    \item 16MHz: 8192
+    \item 40MHz: 20480
+\end{itemize}
+
+\subsection{Timer}
+\subsubsection{Initializations}
+\paragraph{}
+We use the general purpose timer TIM2 in this lab. 
+In order to count time from zero upwards to \texttt{TIME\_SEC} seconds in a single run(instead of repeating),
+we configured the timer to run in one-pulse mode.
+As we ready to start the timer, we issue an update event by setting the \texttt{UEV} bit in register \texttt{TIM2\_EGR},
+then enable the timer by setting the \texttt{CEN} bit in register \texttt{TIM2\_CR1}
+\paragraph{}
+We also set the prescalar to be 3999 so that the counter is updated at each millisecond($4M/(3999+1) = 1000$),
+so the reload value for the timer(\texttt{TIMx\_ARR}) can be simply set to \texttt{TIME\_SEC * 1000}.
+Therefore the implementation of \texttt{timer\_init()} and \texttt{timer\_start()} is given as follows:
+\begin{lstlisting}
+void timer_init(TIM_TypeDef *timer) {
+	RCC->APB1ENR1 |= 0x01;
+	timer->PSC = 3999;
+	timer->ARR = TIME_SEC * 1000;
+	timer->CR1 = 0x09;
+}
+
+void timer_start(TIM_TypeDef *timer) {
+	timer->EGR |= 0x01;
+	timer->CR1 |= 0x01;
+}
+\end{lstlisting}
+\subsubsection{Main Program and The Display of Time}
+\paragraph{}
+In the main program we just initialized the IO and timer, then start it.
+After that we keep track of the \texttt{UIF} flag in the status register(\texttt{TIM2\_SR}) to check whether the counter overflows,
+ we also display the counter value in max7219 in seconds with 2 decimal places in that loop.
+\begin{lstlisting}
+void display(int val) {
+	max7219_send(0x01, val%10);
+	val /= 10;
+	max7219_send(0x02, val%10);
+	val /= 10;
+	max7219_send(0x03, 128 | val%10);
+	val /= 10;
+	for(int p=4; p<=8; p++) {
+		if(val) {
+			max7219_send(p, val%10);
+		} else {
+			max7219_send(p, 0x0F);
+		}
+		val/=10;
+	}
+}
+
+int main() {
+	GPIO_init();
+	max7219_init();
+	timer_init(TIM2);
+	timer_start(TIM2);
+	TIM2->SR &= (0xFFFFFFFE);
+	while(1) {
+		display(TIM2->CNT / 10);
+		if(TIM2->SR & 1) {
+			display(TIME_SEC * 100);
+			break;
+		}
+	}
+    while(1);
+
+	return 0;
+}
+\end{lstlisting}
+
+\subsection{Buzzer}
+\subsubsection{Initializations}
+\paragraph{}
+In order to get PWM working and output the signal, we need additional configuration on both GPIO and the timer.
+\paragraph{}
+According to the STM32l476RG datasheet,
+the output of the timer channel \texttt{TIM2\_CH1} is set on the alternative function \texttt{AF1} of pin \texttt{PA0}.
+Thus for the GPIO, we need to set the alternative function mode in the mode register(\texttt{GPIOA\_MODER}) and the required alternative function in the register \texttt{GPIOA\_AFRL/GPIOA\_AFRH}.
+\paragraph{}
+For the timer, we don't use the prescalar and one-pulse mode,
+and the reload values corresponding to each frequency is stored in the array \texttt{pitch\_arr} and will be set into \texttt{TIM2\_CCR1} at pitch updates.
+In addition, register \texttt{TIM2\_CCMR2} and \texttt{TIM2\_CCER1} is configured so that the output compare 1 is enabled.
+So the function \texttt{timer\_init()} became as below:
+\begin{lstlisting}
+void timer_init(TIM_TypeDef *timer) {
+	RCC->APB1ENR1 |= 0x01;
+	timer->PSC = 0;
+	timer->CCMR1 = 0x00000060;
+	timer->CCER |= 0x01;
+}
+\end{lstlisting}
+
+\subsubsection{Updating the Pitch}
+\paragraph{}
+We scan the keypad just as lab 5.
+When the number is lower than or equal to 8, we set the pitch by the function \texttt{timer\_set\_pitch()}.
+This function simply check if the reload value changes, and updates it if so.
+The \texttt{UEV} bit in register \texttt{EGR} is set at the end in order to clear the counter value so that \texttt{TIMx\_CNT < TIMx\_ARR} always holds:
+\begin{lstlisting}
+void timer_set_pitch(TIM_TypeDef *timer, int arr) {
+	static int current_arr = 0;
+	if(arr == current_arr) {
+		return ;
+	}
+	current_arr = arr;
+	timer->ARR = arr;
+	timer->CCR1 = arr/2;
+	timer->EGR |= 0x01;
+}
+
+int main() {
+    /* Initialization */
+    /* ... */
+    /* While scanning */
+    /* ... */
+        int r = 9-i + 3*j;
+        if(i == 5)r = 10 + j;
+        if(j == 3)r = 8 + i;
+        if(r == 15) r = 0;
+        if(r == 16) r = 15;
+        if(r <= 8)timer_set_pitch(TIM2, pitch_arr[r], cycle);
+    /* ... */
+    /* When scanning is finished and no buttons are pressed */
+    if(!pressed) {
+        timer_set_pitch(TIM2, 0);
+    }
+}
+\end{lstlisting}
+
+\subsection{Modify LED Brightness}
+\paragraph{}
+This is basically similar with the lab 6-3, with two buttons that changes the duty cycle.
+we keep another variable for the current duty cycle,
+and change it using the function \texttt{timer\_set\_pitch()} with additional parameter \texttt{cycle} as follows:
+\begin{lstlisting}
+void timer_set_pitch(TIM_TypeDef *timer, int arr, int cycle) {
+	static int current_arr = 0;
+	if(arr == current_arr) {
+		return ;
+	}
+	if(arr != -1) {
+		current_arr = arr;
+		timer->ARR = arr;
+	}
+	timer->CCR1 = current_arr*cycle/100;
+	timer->EGR |= 0x01;
+}
+\end{lstlisting}
+The determination of the two keypad button is modified like this:
+\begin{lstlisting}
+/* ... */
+/* When scanning */
+    if((GPIOB->IDR >> j) & 0x40) {
+        int r = 9-i + 3*j;
+        if(i == 5)r = 10 + j;
+        if(j == 3)r = 8 + i;
+        if(r == 15) r = 0;
+        if(r == 16) r = 15;
+        if(r <= 8)timer_set_pitch(TIM2, pitch_arr[r], cycle);
+        else if(r == 10 && !hold[0]) {
+            hold[0] = 1;
+            cycle += 10;
+            if(cycle > 90)cycle = 90;
+            timer_set_pitch(TIM2, -1, cycle);
+        } else if(r == 11 && !hold[1]) {
+            hold[1] = 1;
+            cycle -= 10;
+            if(cycle < 10)cycle = 10;
+            timer_set_pitch(TIM2, -1, cycle);
+        }
+        pressed = 1;
+    }
+/* ... */
+/* When scanning is finished and no buttons are pressed */
+if(!pressed) {
+    hold[0] = hold[1] = 0;
+    timer_set_pitch(TIM2, 0, cycle);
+}
+\end{lstlisting}
 \section{Feedback}
+\subsection{PLL Clock Configuration}
 \paragraph{}
+In lab 6-1, we were determining proper values for \texttt{N, M, R} so that the PLL clock would run at the required frequency.
+Knowing that the value of \texttt{M} ranges from 1 to 8, we set these values into \texttt{PLLCFGR} as same as their bit representation.
+It results in wierd behavior while setting PLL as system clock, 
+and took us several hour to figure out that \texttt{PLLM} field only have 3 bits.
+\subsection{MAX7219 as Debug Console}
+\paragraph{}
+Outputting intermediate results is a common trick in debugging. 
+With \texttt{max7219\_send()} function, we are able to do such work when the cases aren't that complicated.
+However, such approach doesn't work when the clock frequency exceeds 10MHz, which is the maximum working frequency of max7219.
+This told us that timing restrictions should be taken into account when the MCU cooperates with other devices, 
+instead of using highest available frquencies directly.
