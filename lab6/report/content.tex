@@ -1,10 +1,136 @@
-\title{Lab1 ARM Assembly 1}
+\title{Lab6 STM32-timer/counter}
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
-\section{What 實驗要做什麼}
+\section{Objectives}
 \paragraph{}
-\section{How 實驗過程}
+\begin{enumerate}
+    \item Understand the various clock source usage and modification of STM32
+    \item Understand the principle of using STM32 timer
+    \item Understand the principle and application of PWM for STM32
+\end{enumerate}
+\section{Experiment Procedure}
+\subsection{Modify system initial clock}
+\subsubsection{SysTick Initialization}
+\begin{enumerate}
+    \item Enable "Counter enable" and "SysTick exception request enable" bit in STK\_CTRL registor.
+    \item Set STK\_LOAD value
+\end{enumerate}
 \paragraph{}
-\section{Feedback 實驗心得}
+First, STK\_VAL will be initialized by STK\_LOAD. When STK\_VAL counts from 1 to 0, the SysTick exception request and COUNTFLAG are activated.
+\begin{lstlisting}
+SysTick->CTRL = 3;
+SysTick->LOAD = 1000000;
+\end{lstlisting}
+\subsubsection{GPIO Initialization}
+\paragraph{}
+We use PA5(on-board LED), PC13(user button) and PB3-5 connected with max7219 as console.
+\begin{lstlisting}
+void GPIO_init() {
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOBEN | RCC_AHB2ENR_GPIOCEN;
+
+	GPIOA->MODER = (GPIOA->MODER & 0xFFFFF3FF) | 0x400;
+	GPIOA->OSPEEDR = 0x800;
+
+	GPIOB->MODER = (GPIOB->MODER & 0xFFFFF03F) | 0x540;
+	GPIOB->OSPEEDR = 0xA80;
+
+	GPIOC->MODER = (GPIOC->MODER & 0xF3FFFFFF);
+	GPIOB->PUPDR = 0x04000000;
+}
+\end{lstlisting}
+\subsubsection{Switch Clock}
+\paragraph{}
+Because we need to produce 1MHz, 6MHz, 10MHz, 16MHz and 40MHz clock, we will use PLL clock to complete this task.
+\begin{lstlisting}
+void switch_clk(int n, int m, int r) {
+	// switch to MSI clock first
+	while(!(RCC->CR & RCC_CR_MSIRDY));
+	RCC->CFGR = (RCC->CFGR & 0xFFFFFFFC) | 0x00;
+
+	RCC->CR &= (0xFEFFFFFF);
+	while(RCC->CR & RCC_CR_PLLRDY);
+	RCC->PLLCFGR = (RCC->PLLCFGR & 0xF8FF808C) | (r << 25) | (n << 8) | (m << 4) | 0x01;
+	RCC->CR |= 0x01000000;
+	RCC->PLLCFGR |= 0x01000000;
+
+	// switch to PLL clock
+	while(!(RCC->CR & RCC_CR_PLLRDY));
+	RCC->CFGR = (RCC->CFGR & 0xFFFFFFFC) | 0x03;
+}
+\end{lstlisting}
+\paragraph{}
+The ability of this above function is to tune the clock into 4M * n / m / rHz. When we want to change the frequency of the clock. We need to do below things.
+\begin{enumerate}
+    \item Switch to MSI clock
+    \begin{enumerate}
+        \item Wait until MSI clock is stable.
+        \item Swtich clcok into MSI clock.
+    \end{enumerate}
+    \item Set PLL parameters.
+    \begin{enumerate}
+        \item Disable PLL clock.
+        \item Wait until PLL is clear.
+        \item Set n, m and into corresponding postion.
+        \item Enable PLL clock.
+    \end{enumerate}
+    \item Switch back to PLL clock.
+    \begin{enumerate}
+        \item Wait until PLL clock is stable.
+        \item Swtich clcok into PLL clock.
+    \end{enumerate}
+\end{enumerate}
+\subsubsection{Parameter of Each Frequency}
+\begin{itemize}
+    \item  1MHz: n =  8, m = 4, r = 8, 4M *  8 / 4 / 8 =  1MHz
+    \item  6MHz: n = 24, m = 4, r = 4, 4M * 24 / 4 / 4 =  6MHz
+    \item 10MHz: n = 40, m = 4, r = 4, 4M * 40 / 4 / 4 = 10MHz
+    \item 16MHz: n = 64, m = 4, r = 4, 4M * 64 / 4 / 4 = 16MHz
+    \item 40MHz: n = 40, m = 1, r = 4, 4M * 40 / 1 / 4 = 40MHz
+\end{itemize}
+\subsubsection{Debounce Limitation}
+\begin{itemize}
+    \item  1MHz: 512
+    \item  6MHz: 3072
+    \item 10MHz: 5120
+    \item 16MHz: 8192
+    \item 40MHz: 20480
+\end{itemize}
+\subsubsection{Poll Button}
+\begin{lstlisting}
+int poll_button() {
+	static int cnt = 0;
+	static int prev = 0;
+	int status = GPIOC->IDR & (0x01 << 13);
+	if(!status) {
+		if(cnt > debounce[clk_state]) {
+			if(prev == 0) {
+				prev = 1;
+				cnt = 0;
+				return 1;
+			}
+			cnt = 0;
+		}
+		cnt++;
+	} else {
+		prev = 0;
+		cnt = 0;
+	}
+	return 0;
+}
+int main() {
+    /* ... */
+	while(1) {
+		if(poll_button()) {
+			clk_state++;
+			if(clk_state == 5) clk_state = 0;
+			switch_clk(PLLN[clk_state], PLLM[clk_state], PLLR[clk_state]);
+		}
+	}
+    /* ... */
+}
+\end{lstlisting}
+\paragraph{}
+When the counter larger than debouce limitation for the first time, poll\_button return true and trigger the button-pushed event.
+\section{Feedback}
 \paragraph{}
