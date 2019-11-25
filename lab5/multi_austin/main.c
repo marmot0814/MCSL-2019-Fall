@@ -6,9 +6,10 @@ void GPIO_init() {
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN | RCC_AHB2ENR_GPIOCEN;
 	GPIOB->MODER = (GPIOB->MODER & 0xFFF0003F) | 0x540;
 	GPIOB->OSPEEDR = 0xA80;
-	GPIOB->PUPDR = 0xAA100;
+	GPIOB->PUPDR = 0x55000;
 
 	GPIOC->MODER = (GPIOC->MODER & 0xFFFC03FF) | 0x15400;
+	GPIOC->OTYPER = 0x1E0;
 	GPIOC->OSPEEDR = 0x2A800;
 }
 
@@ -32,10 +33,9 @@ int main() {
 	while(1) {
 		pressed = sum = 0;
 		for(int i=5; i<9; i++) {
-			GPIOC->ODR = (1<<i);
+			GPIOC->ODR = ~(1<<i);
 			for(int j=0; j<4; j++) {
-				asm("nop");
-				if((GPIOB->IDR >> j) & 0x40) {
+				if(!((GPIOB->IDR >> j) & 0x40)) {
 					int r = 9-i + 3*j;
 					if(i == 5)r = 10 + j;
 					if(j == 3)r = 8 + i;

@@ -30,6 +30,17 @@ _vectors:
     .word 0
     IRQ PendSV_Handler
     IRQ SysTick_Handler
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    IRQ EXTI0_Handler
+    IRQ EXTI1_Handler
+    IRQ EXTI2_Handler
+    IRQ EXTI3_Handler
+    IRQ EXTI4_Handler
     .fill 0x188-(.-_vectors), 1, 0x0
 
     .thumb_func

@@ -1,7 +1,14 @@
 #include "inc/stm32l476xx.h"
 
 // use this pragma at handlers
-//#pragma thumb
+#pragma thumb
+void EXTI0_Handler() {
+	GPIOA->ODR = GPIOA->ODR ^ (1<<5);
+}
+
+void NVIC_config() {
+	NVIC->ISER[0] = (0x0F << 6);
+}
 
 void GPIO_init() {
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOBEN | RCC_AHB2ENR_GPIOCEN;
