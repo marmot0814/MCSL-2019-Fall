@@ -1,7 +1,6 @@
 #include "inc/stm32l476xx.h"
 
 // use this pragma at handlers
-#pragma thumb
 
 int col = 0;
 
@@ -17,6 +16,7 @@ void delay() {
     while (cnt--);
 }
 
+#pragma thumb
 void EXTI0_Handler() {
     int cnt = value[0 * 4 + col];
     while (cnt--) {
