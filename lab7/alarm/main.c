@@ -1,7 +1,6 @@
 #include "inc/stm32l476xx.h"
 
 // use this pragma at handlers
-#pragma thumb
 
 int col = 0;
 
@@ -41,6 +40,7 @@ void handler_keypad(int val) {
     EXTI->PR1 |= 0x0F;
 }
 
+#pragma thumb
 void EXTI0_Handler() {
     handler_keypad(0);
     NVIC_ClearPendingIRQ(EXTI0_IRQn);
