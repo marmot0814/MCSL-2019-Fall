@@ -1,10 +1,43 @@
-\title{Lab1 ARM Assembly 1}
+\title{Lab7 Interrupt and Exception}
 \author{0616069 張晉瑋, 0616014 楊政道}
 \maketitle
 \thispagestyle{fancy}
-\section{What 實驗要做什麼}
+\section{Objectives}
 \paragraph{}
-\section{How 實驗過程}
+In this lab, we are going to learn the procedure to activate different types of exceptions in STM32 system.
+This includes NVIC and SysTick in Cortex M4 processor, and the EXTI in STM32, which sends signals into NVIC.
+We are going to use these featuers to implement programs that interact with user based on interrupts instead of polling values in previous labs.
+\section{Experiment Procedure}
+\subsection{SysTick Timer Interrupt Setting}
 \paragraph{}
-\section{Feedback 實驗心得}
+The whole program flow is simple. We enable the HSI clock and switch to it after it was ready.
+Then set reload value(\texttt{SysTick->LOAD}) and control register that enables counter and its interrupt(\texttt{SysTick->CTRL}).
+The handler simply toggles the state of the output:
+\begin{lstlisting}
+void SysTick_Handler() {
+	GPIOA->ODR = GPIOA->ODR ^ (1<<5);
+}
+\end{lstlisting}
+We use the default clock source, which is the AHB clock with the \texttt{/8} prescalar for SysTick.
+In such manner the reload value of \texttt{6000000} gives the 3 second period(6M/(16M/8)).
+
+\section{Feedback}
+\subsection{Clearing the Pending Bits}
 \paragraph{}
+The pending bit in EXTI pending registers seem to stay high after the handler returns, and should be cleared manually.
+We are still not sure about if it is the actual behavior, and also don't know the reason for such design.
+\subsection{Other Approaches to Obtain The Pressed Key}
+\paragraph{}
+In lab 7-2, we were looking for possible ways to obtain what key is pressed when the interrupts are triggered, which includes:
+\begin{itemize}
+\item Rescan the whole keypad in the EXTI handlers.
+\item Read IDR in the EXTI handlers.
+\item Use EXTI line 0 to 4, which have their own seperated handlers in the vector table. This is the approach we used.
+\item Read the active bit or pending bit in the handler.
+\end{itemize}
+Although the third method is easier to implement,
+we thought the last may be most appropriate among these methods,
+since the bits really indicates the actual state of the exceptions, 
+instead of the signal source, which may not keep generating the signal that are still easy to detect.
+It is better than the third option since the slots for exception in vector table seems to be fairly expensive,
+also the responding procedures are almost the same in each handler.
