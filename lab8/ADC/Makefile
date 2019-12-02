@@ -8,11 +8,14 @@ OBJ_COPY=arm-none-eabi-objcopy
 main.bin: main.elf
 	$(OBJ_COPY) -O binary main.elf main.bin
 
-main.elf: start.o main.o
-	$(LD) $(LD_FLAGS_L4) -o main.elf main.o start.o
+main.elf: start.o max7219.o main.o
+	$(LD) $(LD_FLAGS_L4) -o main.elf main.o max7219.o start.o
 
 start.o: start.s
 	$(CC) $(CC_FLAGS) -o start.o start.s
+
+max7219.o: max7219.s
+	$(CC) $(CC_FLAGS) -o max7219.o max7219.s
 
 main.o: main.c
 	$(CC) $(CC_FLAGS) -o main.o main.c
