@@ -49,7 +49,7 @@ void delay() {
 int main() {
 	GPIO_init();
 	ConfigUSART();
-	int l = strlen(str);
+//	int l = strlen(str);
 	while(1) {
 		if(poll_button()) {
 			for(int i=0; str[i]; i++) {

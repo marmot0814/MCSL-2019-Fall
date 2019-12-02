@@ -10,7 +10,7 @@ main.bin: main.elf
 	$(OBJ_COPY) -O binary main.elf main.bin
 
 main.elf: start.o main.o
-	$(LD) $(LD_FLAGS_L4) $(LIBC) -o main.elf main.o start.o
+	$(LD) $(LD_FLAGS_L4) -o main.elf main.o start.o
 
 start.o: start.s
 	$(CC) $(CC_FLAGS) -o start.o start.s
