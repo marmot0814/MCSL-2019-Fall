@@ -4,7 +4,7 @@
 //#pragma thumb
 
 
-int resistor;
+int resistor, vol;
 extern void max7219_send(int, int);
 
 void display(int val) {
@@ -43,8 +43,8 @@ void SysTick_Handler() {
 #pragma thumb
 void ADC1_2_IRQHandler() {
 	while (!(ADC1->ISR & ADC_ISR_EOC)); // wait for conversion complete
-	int voltage = (int) ADC1->DR;
-    display(voltage);
+	vol = (int) ADC1->DR;
+    resistor = (5000 - vol) * 220 / vol;
 }
 
 void ADC1_init() {
@@ -86,6 +86,12 @@ void GPIO_init() {
 
     GPIOC->MODER = (GPIOC->MODER & ~(0x3 << (2 * 13))) | (0x0 << (2 * 13));   // PC13 input mode
     GPIOC->PUPDR = 0xAA;
+
+
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOCEN;
+	GPIOA->MODER = (GPIOA->MODER & 0xFFC3FFFF) | 0x280000;
+	GPIOA->AFR[1] = (GPIOA->AFR[1] & 0xFFFFF00F) | 0x770;
+
 }
 
 void max7219_init() {
@@ -95,16 +101,67 @@ void max7219_init() {
 	max7219_send(0x0A, 0x08);
 }
 
+void ConfigUSART() {
+	RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+	USART1->BRR = 0x1A0;
+	USART1->CR1 |= USART_CR1_TE;
+	USART1->CR1 |= USART_CR1_UE;
+}
+
+int poll_button() {
+	static int cnt = 0;
+	static int prev = 0;
+	int status = GPIOC->IDR & (0x01 << 13);
+	if(!status) {
+		if(cnt > 2048) {
+			if(prev == 0) {
+				prev = 1;
+				cnt = 0;
+				return 1;
+			}
+			cnt = 0;
+		}
+		cnt++;
+	} else {
+		prev = 0;
+		cnt = 0;
+	}
+	return 0;
+}
+
 
 int main() {
     GPIO_init();
     ADC1_init();
     max7219_init();
+    ConfigUSART();
     SysTick_UserConfig(10);
     while (1) {
-        if (!(GPIOC->IDR & (1 << 13))) {
-            for (int i = 0 ; i < 1000 ; i++);
-            display(100);
+        if (poll_button()) {
+            char buf[100]; buf[0] = '\0'; int ptr = 0;
+            int tar = resistor;
+            while (tar) {
+                buf[ptr++] = (tar % 10) + '0';
+                tar /= 10;
+            }
+            if (ptr == 0)
+                buf[ptr++] = '0';
+            buf[ptr] = '\0';
+
+            int L = 0, R = ptr - 1;
+            while (L < R) {
+                char tmp = buf[L];
+                buf[L] = buf[R];
+                buf[R] = tmp;
+                L++;
+                R--;
+            }
+            buf[ptr++] = ' ';
+            buf[ptr] = '\0';
+            for (int i = 0 ; i < ptr ; i++) {
+                while (!(USART1->ISR & USART_ISR_TXE));
+                USART1->TDR = buf[i];
+            }
         }
     }
 	return 0;
