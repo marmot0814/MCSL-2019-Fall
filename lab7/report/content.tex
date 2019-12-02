@@ -20,7 +20,146 @@ void SysTick_Handler() {
 \end{lstlisting}
 We use the default clock source, which is the AHB clock with the \texttt{/8} prescalar for SysTick.
 In such manner the reload value of \texttt{6000000} gives the 3 second period(6M/(16M/8)).
+\subsection{Multiple External Interrupt setting}
+\paragraph{}
+In this section, we set the interruption as input pin of keypad. Then, the numnber of the times the LED will flash are controlled by the input from keypad.
+\paragraph{}
+We use PC0 to PC3 as input signal from the keypad, PC5 to PC8 as output signal to the keypad. Then, we register four handlers, EXTI0 to EXTI3, on the four input pins mentioned above and use on-board LED to show our result.
+\begin{lstlisting}
+void NVIC_config() {
+    NVIC->ISER[0] = (0x0F << 6);
+}
+void GPIO_init() {
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOCEN;
+	GPIOA->MODER = (GPIOA->MODER & 0xFFFFF3FF) | 0x400;
+	GPIOA->OSPEEDR = 0x800;
+	GPIOA->ODR = GPIOA->ODR ^ (1<<5);
 
+	GPIOC->MODER = (GPIOC->MODER & 0xFFFC0300) | 0x15400;
+	GPIOC->OSPEEDR = 0x800;
+    GPIOC->PUPDR = 0xAA;
+}
+void EXTI_config() {
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+    SYSCFG->EXTICR[0] = 0x2222;
+    EXTI->IMR1 = (EXTI->IMR1 & 0xFFFFFFF0) | 0xF;
+    EXTI->RTSR1 = (EXTI->RTSR1 & 0xFFFFFFF0) | 0xF;
+    EXTI->PR1 = (EXTI->PR1 & 0xFFFFFFF0) | 0xF;
+}
+int col = 0;
+int value[] = {
+    1,  2,  3, 10,
+    4,  5,  6, 11,
+    7,  8,  9, 12,
+   15,  0, 14, 13
+};
+void handler_keypad(int val) {
+    int cnt = value[val * 4 + col];
+    while (cnt--) {
+	    GPIOA->ODR = GPIOA->ODR ^ (1<<5);
+        delay();
+	    GPIOA->ODR = GPIOA->ODR ^ (1<<5);
+        delay();
+    }
+    EXTI->PR1 |= 0x0F;
+}
+#pragma thumb
+void EXTI0_Handler() {
+    handler_keypad(0);
+    NVIC_ClearPendingIRQ(EXTI0_IRQn);
+}
+#pragma thumb
+void EXTI1_Handler() {
+    handler_keypad(1);
+    NVIC_ClearPendingIRQ(EXTI1_IRQn);
+}
+#pragma thumb
+void EXTI2_Handler() {
+    handler_keypad(2);
+    NVIC_ClearPendingIRQ(EXTI2_IRQn);
+}
+#pragma thumb
+void EXTI3_Handler() {
+    handler_keypad(3);
+    NVIC_ClearPendingIRQ(EXTI3_IRQn);
+}
+\end{lstlisting}
+\paragraph{}
+The program flow is simple. We scan all over the keypad. If we receive the signal, it will trigger the corresponding interrupt and action according to the handler.
+\begin{lstlisting}
+int main() {
+    GPIO_init();
+    NVIC_config();
+    EXTI_config();
+    while(1) {
+        for (int i = 0 ; i < 4 ; i++) {
+            col = i;
+            GPIOC->ODR = (1 << (i + 5));
+        }
+    }
+    return 0;
+}
+\end{lstlisting}
+\subsection{Simple Alarm}
+\paragraph{}
+We still need a keypad to complete the task. However, in this setion, we need to control the buzz and make a simple alarm. All the functions about the buzz is from Lab6 and we just call these functions in some interrupt handlers.
+\paragraph{}
+We need to modify some codes in function \texttt{handler\_keypad} to count down.
+\begin{lstlisting}
+void handler_keypad(int val) {
+    SysTick->CTRL |= 1;
+    SysTick->VAL = 500000;
+    if (!is_counting) {
+        is_counting = 1;
+        cnt = value[val * 4 + col];
+    }
+    EXTI->PR1 |= 0x0F;
+}
+\end{lstlisting}
+\paragraph{}
+We use a bool variable called \texttt{is\_counting} to avoid keypad input when we are counting down. If being end of countdown, we clear the \texttt{is\_counting} flag and make a sound. When we get the button input, we shut down the buzz.
+\begin{lstlisting}
+int poll_button() {
+	static int cnt = 0;
+	static int prev = 0;
+	int status = GPIOC->IDR & (0x01 << 13);
+	if(!status) {
+		if(cnt > 2048) {
+			if(prev == 0) {
+				prev = 1;
+				cnt = 0;
+				return 1;
+			}
+			cnt = 0;
+		}
+		cnt++;
+	} else {
+		prev = 0;
+		cnt = 0;
+	}
+	return 0;
+}
+#pragma thumb
+void SysTick_Handler() {
+    if (is_counting)
+        cnt--;
+    if (is_counting && cnt == 0)
+        timer_set_pitch(TIM2, 15291), is_counting = 0;
+}
+int main() {
+    /* ... */
+    while(1) {
+        for (int i = 0 ; i < 4 ; i++) {
+            col = i;
+            GPIOC->ODR = (1 << (i + 5));
+            if (!is_counting && poll_button()) {
+                timer_set_pitch(TIM2, 0);
+            }
+        }
+    }
+    /* ... */
+}
+\end{lstlisting}
 \section{Feedback}
 \subsection{Clearing the Pending Bits}
 \paragraph{}

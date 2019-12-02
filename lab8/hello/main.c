@@ -1,9 +1,6 @@
 #include "inc/stm32l476xx.h"
 #include <string.h>
 
-// use this pragma at handlers
-//#pragma thumb
-
 char str[] = "Hello, World!";
 
 void GPIO_init() {
