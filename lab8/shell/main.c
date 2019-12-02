@@ -11,6 +11,7 @@ void GPIO_init() {
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOCEN;
 	GPIOA->MODER = (GPIOA->MODER & 0xFFC3FFFF) | 0x280000;
 	GPIOA->AFR[1] = (GPIOA->AFR[1] & 0xFFFFF00F) | 0x770;
+	GPIOA->MODER = (GPIOA->MODER & 0xFFFFF3FF) | 0x400;
 
 	GPIOC->MODER = (GPIOC->MODER & 0xF3FFFFFF);
 	GPIOC->OSPEEDR = 0x800;
@@ -62,6 +63,16 @@ void run_command() {
 	for(char *s = strtok(com); s; s = strtok(0)) {
 		if(strcmp(s, "showid")) {
 			print("0616069");
+		} else if(strcmp(s, "light")) {
+			shell_state = 1;
+			return ;
+		} else if(strcmp(s, "led")) {
+			s = strtok(0);
+			if(strcmp(s, "on")) {
+				GPIOA->ODR |= (1<<5);
+			} else if(strcmp(s, "off")) {
+				GPIOA->ODR &= ~(1<<5);
+			}
 		}
 	}
 }
@@ -73,16 +84,22 @@ int main() {
 	while(1) {
 		if(USART1->ISR & USART_ISR_RXNE) {
 			char c = USART1->RDR;
-			while(!(USART1->ISR & USART_ISR_TXE));
-			USART1->TDR = c;
-			if(c == '\n' || c == '\r') {
-				USART1->TDR = '\n';
-				com[ptr] = '\0';
-				run_command();
-				ptr = 0;
-				continue;
+			if(shell_state == 0) {
+				while(!(USART1->ISR & USART_ISR_TXE));
+				USART1->TDR = c;
+				if(c == '\n' || c == '\r') {
+					USART1->TDR = '\n';
+					com[ptr] = '\0';
+					run_command();
+					ptr = 0;
+					continue;
+				}
+				com[ptr++] = c;
+			} else {
+				if(c == 'q') {
+					shell_state = 0;
+				}
 			}
-			com[ptr++] = c;
 		}
 	}
 	return 0;
