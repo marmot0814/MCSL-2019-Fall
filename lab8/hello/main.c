@@ -1,5 +1,4 @@
 #include "inc/stm32l476xx.h"
-#include <string.h>
 
 char str[] = "Hello, World!";
 
@@ -49,7 +48,6 @@ void delay() {
 int main() {
 	GPIO_init();
 	ConfigUSART();
-	int l = strlen(str);
 	while(1) {
 		if(poll_button()) {
 			for(int i=0; str[i]; i++) {
