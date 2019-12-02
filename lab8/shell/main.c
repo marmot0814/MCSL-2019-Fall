@@ -1,5 +1,6 @@
 #include "inc/stm32l476xx.h"
 
+int resistor, vol;
 char* prev;
 char* strtok(char *str) {
     if (str)
@@ -38,7 +39,59 @@ int strcmp(char *a, char *b) {
 
 #define MAX_BUFFER_SIZE 64
 
-char str[] = "Hello, World!";
+#pragma thumb
+void SysTick_UserConfig(int sw) {
+	if(sw) {
+		SysTick->CTRL |= 0x00000004;
+		SysTick->LOAD = 5 * 400000;
+		SysTick->VAL = 0;
+		SysTick->CTRL |= 0x00000003;
+	} else {
+		SysTick->CTRL &= (0xFFFFFFFE);
+	}
+}
+
+#pragma thumb
+void SysTick_Handler() {
+//    	GPIOA->ODR = GPIOA->ODR ^ (1<<5);
+
+	ADC1->CR |= ADC_CR_ADSTART; // start adc conversion
+}
+
+#pragma thumb
+void ADC1_2_IRQHandler() {
+	while (!(ADC1->ISR & ADC_ISR_EOC)); // wait for conversion complete
+	vol = (int) ADC1->DR;
+    resistor = (5000 - vol) * 220 / vol;
+}
+
+void ADC1_init() {
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
+	RCC->AHB2ENR |= RCC_AHB2ENR_ADCEN;
+	GPIOC->MODER |= 0b11; // analog mode
+	GPIOC->ASCR |= 1; // connect analog switch to ADC input
+	ADC1->CFGR &= ~ADC_CFGR_RES; // 12-bit resolution
+	ADC1->CFGR &= ~ADC_CFGR_CONT; // disable continuous conversion
+	ADC1->CFGR &= ~ADC_CFGR_ALIGN; // right align
+	ADC123_COMMON->CCR &= ~ADC_CCR_DUAL; // independent mode
+	ADC123_COMMON->CCR &= ~ADC_CCR_CKMODE; // clock mode: hclk / 1
+	ADC123_COMMON->CCR |= 1 << 16;
+	ADC123_COMMON->CCR &= ~ADC_CCR_PRESC; // prescaler: div 1
+	ADC123_COMMON->CCR &= ~ADC_CCR_MDMA; // disable dma
+	ADC123_COMMON->CCR &= ~ADC_CCR_DELAY; // delay: 5 adc clk cycle
+	ADC123_COMMON->CCR |= 4 << 8;
+	ADC1->SQR1 &= ~(ADC_SQR1_SQ1 << 6); // channel: 1, rank: 1
+	ADC1->SQR1 |= (1 << 6);
+	ADC1->SMPR1 &= ~(ADC_SMPR1_SMP0 << 3); // adc clock cycle: 12.5
+	ADC1->SMPR1 |= (2 << 3);
+	ADC1->CR &= ~ADC_CR_DEEPPWD; // turn off power
+	ADC1->CR |= ADC_CR_ADVREGEN; // enable adc voltage regulator
+	for (int i = 0; i <= 1000; ++i); // wait for regulator start up
+	ADC1->IER |= ADC_IER_EOCIE; // enable end of conversion interrupt
+	NVIC_EnableIRQ(ADC1_2_IRQn);
+	ADC1->CR |= ADC_CR_ADEN; // enable adc
+	while (!(ADC1->ISR & ADC_ISR_ADRDY)); // wait for adc start up
+}
 
 void GPIO_init() {
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOCEN;
@@ -98,6 +151,7 @@ void run_command() {
 			print("0616069");
 		} else if(strcmp(s, "light")) {
 			shell_state = 1;
+			SysTick_UserConfig(1);
 			return ;
 		} else if(strcmp(s, "led")) {
 			s = strtok(0);
@@ -113,6 +167,7 @@ void run_command() {
 int main() {
 	GPIO_init();
 	ConfigUSART();
+	ADC1_init();
 	ptr = 0;
 	while(1) {
 		if(USART1->ISR & USART_ISR_RXNE) {
@@ -130,6 +185,7 @@ int main() {
 				com[ptr++] = c;
 			} else {
 				if(c == 'q') {
+					SysTick_UserConfig(0);
 					shell_state = 0;
 				}
 			}
