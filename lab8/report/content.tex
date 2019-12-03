@@ -150,6 +150,100 @@ int main() {
 \subsection{Simple Shell}
 \paragraph{}
 Compared with lab 8-1, we need to configure USART reciever additionally.
-We also need to configure ADC as lab 8-2
-\section{Feedback}
+We also need to configure ADC as lab 8-2.
+So the changes in initialization is simply enabling \texttt{RE} bit in USART control registers.
 \paragraph{}
+We use a while loop to keep track of the availability of the recieved data.
+Whenever a character is recieved, we first check that if it keeps displaying the values from ADC,
+if so we handle the \texttt{'q'} character,
+and if not we store the character into the line buffer \texttt{com} then parse the command whenever the newline or carriage return is recieved.
+The trickier part is to handle backspace, which moves cursor backward while clearing character in the line buffer.
+\begin{lstlisting}
+while(1) {
+    if(USART1->ISR & USART_ISR_RXNE) {
+        char c = USART1->RDR;
+        if(shell_state == 0) {
+            while(!(USART1->ISR & USART_ISR_TXE));
+            USART1->TDR = c;
+            if(c == '\n' || c == '\r') {
+                USART1->TDR = '\n';
+                com[ptr] = '\0';
+                run_command();
+                ptr = 0;
+                continue;
+            } else if (c == 0x08) {
+                if (ptr != 0) {
+                    com[ptr--] = '\0';
+                    print(" \b");
+                } else 
+                    print(">");
+                    continue;
+                }
+                com[ptr++] = c;
+        } else {
+            if(c == 'q') {
+                // Disable the sensing timer
+                SysTick_UserConfig(0);
+                for (int i = 0 ; i < 10000 ; i++);
+                print(">");
+                shell_state = 0;
+            }
+        }
+    }
+}
+\end{lstlisting}
+\paragraph{}
+We implemented our own \texttt{strtok} and \texttt{strcmp} to determine the recieved command and do the corresponding actions in \texttt{run\_command()}:
+\begin{lstlisting}
+void run_command() {
+	for(char *s = strtok(com); s; s = strtok(0)) {
+		if(strcmp(s, "showid")) {
+			print("0616069\r\n");
+		} else if(strcmp(s, "light")) {
+			shell_state = 1;
+            // Start the sensing timer
+			SysTick_UserConfig(1);
+			return ;
+		} else if(strcmp(s, "led")) {
+			s = strtok(0);
+			if(strcmp(s, "on")) {
+				GPIOA->ODR |= (1<<5);
+			} else if(strcmp(s, "off")) {
+				GPIOA->ODR &= ~(1<<5);
+			}
+		} else {
+			print("Unknown Command\r\n");
+		}
+	}
+	print(">");
+}
+\end{lstlisting}
+\paragraph{}
+For the \texttt{showid} and \texttt{led} command, we just transmit each character in the student ID string and control GPIO directly.
+For the \texttt{light} command, we enable the 0.5 second timer in \texttt{SysTick\_UserConfig()} function,
+then start the ADC conversion and display the value at the conversion complete interrupt.
+\begin{lstlisting}
+#pragma thumb
+void SysTick_Handler() {
+//    	GPIOA->ODR = GPIOA->ODR ^ (1<<5);
+
+	ADC1->CR |= ADC_CR_ADSTART; // start adc conversion
+}
+
+#pragma thumb
+void ADC1_2_IRQHandler() {
+	while (!(ADC1->ISR & ADC_ISR_EOC)); // wait for conversion complete
+	vol = (int) ADC1->DR;
+    resistor = (5000 - vol) * 220 / vol;
+    printInt(resistor);
+    print("\r\n");
+}
+\end{lstlisting}
+\section{Feedback}
+\subsection{Attempts for \texttt{libc} Static Linking}
+\paragraph{}
+The functions defined in \texttt{string.h} and \texttt{stdlib.h} are implemented in LibC,
+which is \texttt{libc.a} in arm library path.
+We've tried to use functions in it and link it in Makefile but in vain(undefined reference error).
+There may be misunderstanding of us about the linker script and the mechanism of \texttt{ld} command,
+but still need more investigations.
