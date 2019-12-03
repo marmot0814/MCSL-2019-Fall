@@ -1,0 +1,55 @@
+\title{Lab8 USART and ADC}
+\author{0616069 張晉瑋, 0616014 楊政道}
+\maketitle
+\thispagestyle{fancy}
+\section{Objectives}
+\paragraph{}
+The objectives of this lab are to learn the mechanism of USART communication, including transmit and recieve,
+and the ADC unit of STM32, which provides the conversion from analog voltage to digital integral values.
+\section{Experiment Procedure}
+\subsection{Hello World!}
+\paragraph{}
+There are several USART communication channels.
+To enable them, we need to set up the APB they belong to and their own control registers.
+In order to make it connected with external devices, the alternative function should also be set.
+Then the USART transmitter sends the data in \texttt{USART\_TDR} and clears \texttt{TXE} bit at each single bit transmission.
+\paragraph{}
+In this lab, we use USART1 on GPIO pin \texttt{PA9, PA10},
+so the registers of GPIO and \texttt{APB2ENR, USART\_CR1, USART\_BRR} are configured as follows:
+\begin{lstlisting}
+void GPIO_init() {
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOCEN;
+	GPIOA->MODER = (GPIOA->MODER & 0xFFC3FFFF) | 0x280000;
+	GPIOA->AFR[1] = (GPIOA->AFR[1] & 0xFFFFF00F) | 0x770;
+}
+void ConfigUSART() {
+	RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+	USART1->BRR = 0x1A0;
+	USART1->CR1 |= USART_CR1_TE;
+	USART1->CR1 |= USART_CR1_UE;
+}
+\end{lstlisting}
+\paragraph{}
+The main loop simply polls for the button and the \texttt{TXE} bit:
+\begin{lstlisting}
+int main() {
+	GPIO_init();
+	ConfigUSART();
+	while(1) {
+		if(poll_button()) {
+			for(int i=0; str[i]; i++) {
+				while(!(USART1->ISR & USART_ISR_TXE));
+				USART1->TDR = str[i];
+			}
+		}
+	}
+	return 0;
+}
+\end{lstlisting}
+
+\subsection{Simple Shell}
+\paragraph{}
+Compared with lab 8-1, we need to configure USART reciever additionally.
+We also need to configure ADC as lab 8-2
+\section{Feedback}
+\paragraph{}
