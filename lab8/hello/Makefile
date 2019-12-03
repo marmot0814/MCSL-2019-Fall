@@ -4,12 +4,13 @@ LD=arm-none-eabi-ld
 LD_FLAGS_F4=-nostartfiles -TLinkerScriptF4.ld
 LD_FLAGS_L4=-nostartfiles -TLinkerScriptL4.ld
 OBJ_COPY=arm-none-eabi-objcopy
+LIBC=-L /usr/arm-none-eabi/lib -l c
 
 main.bin: main.elf
 	$(OBJ_COPY) -O binary main.elf main.bin
 
 main.elf: start.o main.o
-	$(LD) $(LD_FLAGS_L4) -o main.elf main.o start.o
+	$(LD) $(LD_FLAGS_L4) $(LIBC) -o main.elf main.o start.o
 
 start.o: start.s
 	$(CC) $(CC_FLAGS) -o start.o start.s
