@@ -1,5 +1,11 @@
 #include "inc/stm32l476xx.h"
 
+void print(char *s) {
+	for(int i=0; s[i]; i++) {
+		while(!(USART1->ISR & USART_ISR_TXE));
+		USART1->TDR = s[i];
+	}
+}
 int resistor, vol;
 char* prev;
 char* strtok(char *str) {
@@ -33,11 +39,34 @@ int strcmp(char *a, char *b) {
             return 0;
     return 1;
 }
+void printInt(int tar) {
+    static char buf[100]; buf[0] = '\0'; int ptr = 0;
+    while (tar) {
+        buf[ptr++] = (tar % 10) + '0';
+        tar /= 10;
+    }
+    if (ptr == 0)
+        buf[ptr++] = '0';
+    buf[ptr] = '\0';
+    int L = 0, R = ptr - 1;
+    while (L < R) {
+        char tmp = buf[L];
+        buf[L] = buf[R];
+        buf[R] = tmp;
+        L++;
+        R--;
+    }
+    buf[ptr] = '\0';
+    for (int i = 0 ; i < ptr ; i++) {
+        while (!(USART1->ISR & USART_ISR_TXE));
+        USART1->TDR = buf[i];
+    }
+}
 
 // use this pragma at handlers
 //#pragma thumb
 
-#define MAX_BUFFER_SIZE 64
+#define MAX_BUFFER_SIZE 128
 
 #pragma thumb
 void SysTick_UserConfig(int sw) {
@@ -63,6 +92,8 @@ void ADC1_2_IRQHandler() {
 	while (!(ADC1->ISR & ADC_ISR_EOC)); // wait for conversion complete
 	vol = (int) ADC1->DR;
     resistor = (5000 - vol) * 220 / vol;
+    printInt(resistor);
+    print("\r\n");
 }
 
 void ADC1_init() {
@@ -138,17 +169,11 @@ char res[MAX_BUFFER_SIZE];
 int ptr;
 int shell_state = 0;
 
-void print(char *s) {
-	for(int i=0; s[i]; i++) {
-		while(!(USART1->ISR & USART_ISR_TXE));
-		USART1->TDR = s[i];
-	}
-}
 
 void run_command() {
 	for(char *s = strtok(com); s; s = strtok(0)) {
 		if(strcmp(s, "showid")) {
-			print("0616069");
+			print("0616069\r\n");
 		} else if(strcmp(s, "light")) {
 			shell_state = 1;
 			SysTick_UserConfig(1);
@@ -160,8 +185,11 @@ void run_command() {
 			} else if(strcmp(s, "off")) {
 				GPIOA->ODR &= ~(1<<5);
 			}
-		}
+		} else {
+            print("Unknown Command\r\n");
+        }
 	}
+    print(">");
 }
 
 int main() {
@@ -169,6 +197,7 @@ int main() {
 	ConfigUSART();
 	ADC1_init();
 	ptr = 0;
+    print(">");
 	while(1) {
 		if(USART1->ISR & USART_ISR_RXNE) {
 			char c = USART1->RDR;
@@ -181,11 +210,21 @@ int main() {
 					run_command();
 					ptr = 0;
 					continue;
-				}
+				} else if (c == 0x08) {
+//					USART1->TDR = 0x08;
+                    if (ptr != 0) {
+                        ptr--;
+                        print(" \b");
+                    } else 
+                        print(">");
+                    continue;
+                }
 				com[ptr++] = c;
 			} else {
 				if(c == 'q') {
 					SysTick_UserConfig(0);
+                    for (int i = 0 ; i < 10000 ; i++);
+                    print(">");
 					shell_state = 0;
 				}
 			}
