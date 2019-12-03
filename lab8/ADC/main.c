@@ -23,7 +23,6 @@ void GPIO_init() {
     GPIOA->AFR[1] = (GPIOA->AFR[1] & 0xFFFFF00F) | 0x770;
 
     RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
-	RCC->AHB2ENR |= RCC_AHB2ENR_ADCEN;              // enable ADC
     GPIOC->MODER = (GPIOC->MODER & ~(0x3 << (2 * 13))) | (0x0 << (2 * 13));   // PC13 input mode
     GPIOC->MODER = (GPIOC->MODER & 0xFFFFFFFC) | 0x3;
     GPIOC->PUPDR = 0xAA;
@@ -31,6 +30,7 @@ void GPIO_init() {
 }
 
 void ADC1_init() {
+	RCC->AHB2ENR |= RCC_AHB2ENR_ADCEN;              // enable ADC
     ADC1->CFGR &= ~ADC_CFGR_RES;                    // resolution 12-bit
     ADC1->CFGR &= ~ADC_CFGR_CONT;                   // single conversion mode
     ADC1->CFGR &= ~ADC_CFGR_ALIGN;                  // right alignment
@@ -43,7 +43,7 @@ void ADC1_init() {
     ADC123_COMMON->CCR &= ~ADC_CCR_DELAY;
     ADC123_COMMON->CCR |= 4 << ADC_CCR_DELAY_Pos;
 
-    ADC1->SQR1 &= ~(ADC_SQR1_SQ1 << 6);                    // channel: 1, rank: 1
+    ADC1->SQR1 &= ~(ADC_SQR1_SQ1);                  // channel: 1, rank: 1
     ADC1->SQR1 |= 1 << ADC_SQR1_SQ1_Pos;
     
     ADC1->SMPR1 &= ~ADC_SMPR1_SMP1;                 // ADC sample pre 6.5 clock cycle
