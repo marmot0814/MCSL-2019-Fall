@@ -186,10 +186,10 @@ void run_command() {
 				GPIOA->ODR &= ~(1<<5);
 			}
 		} else {
-            print("Unknown Command\r\n");
-        }
+			print("Unknown Command\r\n");
+		}
 	}
-    print(">");
+	print(">");
 }
 
 int main() {
@@ -197,7 +197,7 @@ int main() {
 	ConfigUSART();
 	ADC1_init();
 	ptr = 0;
-    print(">");
+	print(">");
 	while(1) {
 		if(USART1->ISR & USART_ISR_RXNE) {
 			char c = USART1->RDR;
@@ -212,19 +212,19 @@ int main() {
 					continue;
 				} else if (c == 0x08) {
 //					USART1->TDR = 0x08;
-                    if (ptr != 0) {
-                        ptr--;
-                        print(" \b");
-                    } else 
-                        print(">");
-                    continue;
-                }
-				com[ptr++] = c;
+					if (ptr != 0) {
+						com[ptr--] = '\0';
+						print(" \b");
+					} else 
+						print(">");
+						continue;
+					}
+					com[ptr++] = c;
 			} else {
 				if(c == 'q') {
 					SysTick_UserConfig(0);
-                    for (int i = 0 ; i < 10000 ; i++);
-                    print(">");
+					for (int i = 0 ; i < 10000 ; i++);
+					print(">");
 					shell_state = 0;
 				}
 			}
